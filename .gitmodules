@@ -1,0 +1,4 @@
+[submodule "generator"]
+	path = generator
+	url = gogs@git.ias.cs.tu-bs.de:browser-ipc-fuzzing/generator.git
+	branch = feat/ipc-fuzzer

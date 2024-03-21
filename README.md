@@ -1,0 +1,1 @@
+# IPCrafter - A Browser IPC fuzzer to discover site isolation bypass vulnerabilities
