@@ -1,0 +1,103 @@
+import asyncio
+from playwright.async_api import (
+    async_playwright,
+    Playwright,
+    Browser,
+    BrowserContext,
+    ConsoleMessage,
+    Page,
+    Locator,
+    Frame,
+)
+
+TIMEOUT = 3
+
+
+async def connect_to_chrome(cdp_url: str) -> Browser:
+    async with async_playwright() as p:
+        browser = await p.chromium.connect_over_cdp(cdp_url)
+        return browser
+
+
+async def connect_to_firefox(ws_url: str) -> Browser:
+    async with async_playwright() as p:
+        browser = await p.firefox.connect(ws_url)
+        return browser
+
+
+async def init_context(browser: Browser) -> BrowserContext:
+    context = await browser.new_context()
+    # TODO: visit seed pages
+    return context
+
+
+async def cleanup(context: BrowserContext) -> None:
+    """Close all pages except the first two."""
+    idx = 2
+    while idx < len(context.pages):
+        await context.pages[idx].close()
+
+
+async def execute(context: BrowserContext, url: str) -> list[dict]:
+
+    logs: list[dict] = []
+
+    def on_console(msg: ConsoleMessage):
+        """Copy the message but convert the args to json values if possible."""
+        msg_copy = {
+            "location": msg.location,
+            "text": msg.text,
+            "type": msg.type,
+            "args": [],
+        }
+        for arg in msg.args:
+            try:
+                msg_copy["args"].append(arg.json_value())
+            except:
+                pass
+        logs.append(msg_copy)
+
+    context.on("console", on_console)
+
+    fut = visit_page(context, url)
+    try:
+        await asyncio.wait_for(fut, timeout=TIMEOUT)
+    except asyncio.TimeoutError:
+        pass
+
+    fut = cleanup(context)
+    try:
+        await asyncio.wait_for(fut, timeout=TIMEOUT)
+    except asyncio.TimeoutError:
+        pass
+
+    return logs
+
+
+async def visit_page(context: BrowserContext, url: str) -> None:
+    page = await context.new_page()
+    await page.goto(url)
+
+    idx = 2
+    while idx < len(context.pages):
+        await click_everything(context.pages[idx])
+
+
+async def click_everything(page: Page) -> None:
+    iframes: list[Frame] = page.frames
+    for iframe in iframes:
+        await iframe.get_by_text("foo").click()
+        for button in await iframe.get_by_role("button").all():
+            await button.click()
+
+    buttons: list[Locator] = await page.get_by_role("button").all()
+    for button in buttons:
+        await button.click()
+
+    fencedframes = await page.locator("fencedframe").all()
+    for frame in fencedframes:
+        await frame.click()
+
+    links = await page.locator("a").all()
+    for link in links:
+        await link.click()
