@@ -10,19 +10,52 @@ from playwright.async_api import (
     Frame,
 )
 
+from typing import Callable
+from ..generator.jabby.generator.url import URLScope
+
 TIMEOUT = 3
 
 
-async def connect_to_chrome(cdp_url: str) -> Browser:
+async def exec_remote_chrome(
+    cdp_url: str, generate_callback: Callable[[], int]
+) -> None:
     async with async_playwright() as p:
         browser = await p.chromium.connect_over_cdp(cdp_url)
-        return browser
+        await exec(browser, generate_callback)
 
 
-async def connect_to_firefox(ws_url: str) -> Browser:
+async def exec_remote_firefox(
+    ws_url: str, generate_callback: Callable[[], int]
+) -> None:
     async with async_playwright() as p:
         browser = await p.firefox.connect(ws_url)
-        return browser
+        await exec(browser, generate_callback)
+
+
+async def exec_local_chrome(
+    chrome_path: str, generate_callback: Callable[[], int]
+) -> None:
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(executable_path=chrome_path)
+        await exec(browser, generate_callback)
+
+
+async def exec_local_firefox(
+    firefox_path: str, generate_callback: Callable[[], int]
+) -> None:
+    async with async_playwright() as p:
+        browser = await p.firefox.launch(executable_path=firefox_path)
+        await exec(browser, generate_callback)
+
+
+async def exec(browser: Browser, generate_callback: Callable[[], int]) -> None:
+    context = await init_context(browser)
+
+    while True:
+        input_id = generate_callback()
+        url = URLScope.to_url(1, 1, input_id)
+        logs = await execute(context, url)
+        print(logs)
 
 
 async def init_context(browser: Browser) -> BrowserContext:
