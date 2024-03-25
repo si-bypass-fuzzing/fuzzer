@@ -38,3 +38,6 @@ def main():
 
     fuzzer = Fuzzer(args.webidl_dir, args.mdn_dir, args.server_dir)
     fuzzer.fuzz(args.browser, args.remote, args.path)
+
+if __name__ == "__main__":
+    main()
