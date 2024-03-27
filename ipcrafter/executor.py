@@ -47,10 +47,16 @@ async def exec_local_firefox(
         async with await p.firefox.launch(executable_path=firefox_path,headless=False) as browser:
             await exec(browser, generate_callback)
 
+async def visit_seeds(context: BrowserContext) -> None:
+    for origin_id in range(1, 3):
+        url = URLScope.to_origin(origin_id) + "/seed.html"
+        page = await context.new_page()
+        await page.goto(url)
 
 async def exec(browser: Browser, generate_callback: Callable[[], int]) -> None:
     async with await browser.new_context() as context:
-        # TODO: visit seed pages
+        await visit_seeds(context)
+
         while True:
             input_id = generate_callback()
             url = URLScope.to_url(1, 1, input_id)

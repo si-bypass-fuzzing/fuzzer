@@ -18,6 +18,9 @@ class Fuzzer:
 
     def fuzz(self, browser: str, remote: bool, browser_path: str):
 
+        self.generator.create_output_dirs()
+        self.generator.generate_seed_pages()
+
         def generate() -> int:
             self.input_id += 1
             self.generator.generate_input(self.input_id)
