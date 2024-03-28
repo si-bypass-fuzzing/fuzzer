@@ -36,8 +36,9 @@ def main():
     )
     args = parser.parse_args()
 
-    fuzzer = Fuzzer(args.webidl_dir, args.mdn_dir, args.server_dir)
+    fuzzer = Fuzzer(args.browser, args.webidl_dir, args.mdn_dir, args.server_dir)
     fuzzer.fuzz(args.browser, args.remote, args.path)
+
 
 if __name__ == "__main__":
     main()

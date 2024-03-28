@@ -4,7 +4,9 @@ IPCrafter - A fuzzer for site isolation bypass vulnerabilities in web browsers
 
 import logging
 import sys
+import random
 
+random.seed(42)
 
 
 class CustomFormatter(logging.Formatter):

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from playwright.async_api import (
     async_playwright,
     Playwright,
@@ -8,6 +9,7 @@ from playwright.async_api import (
     Page,
     Locator,
     Frame,
+    Error as PlaywrightError,
 )
 
 from typing import Callable
@@ -15,37 +17,34 @@ from .generator.jabby.generator.url import URLScope
 
 TIMEOUT = 3
 
+"""
+const { firefox } = require('playwright');
+(async () => {
+    let ff_path = "/home/jn/git/gecko-dev/obj-tf-release/dist/firefox/firefox";
+    const server = await firefox.launchServer({ headless: false, executablePath: ff_path , devtools: true});
+    console.log(server.wsEndpoint());
+})();
+"""
 
-async def exec_remote_chrome(
-    cdp_url: str, generate_callback: Callable[[], int]
-) -> None:
-    async with async_playwright() as p:
-        async with await p.chromium.connect_over_cdp(cdp_url) as browser:
-            await exec(browser, generate_callback)
+async def fuzz(browser_type: str, remote: bool, browser_path: str, generate_callback: Callable[[], int]):
+    while True:
+        try:
+            async with async_playwright() as p:
+                if remote:
+                    if browser_type == "chrome":
+                        fut = p.chromium.connect_over_cdp(browser_path)
+                    else: # browser == "firefox"
+                        fut = p.firefox.connect(browser_path)
+                else:
+                    if browser_type == "chrome":
+                        fut = p.chromium.launch(executable_path=browser_path)
+                    else: # browser == "firefox"
+                        fut = p.firefox.launch(executable_path=browser_path,headless=False)
 
-
-async def exec_remote_firefox(
-    ws_url: str, generate_callback: Callable[[], int]
-) -> None:
-    async with async_playwright() as p:
-        async with await p.firefox.connect(ws_url) as browser:
-            await exec(browser, generate_callback)
-
-
-async def exec_local_chrome(
-    chrome_path: str, generate_callback: Callable[[], int]
-) -> None:
-    async with async_playwright() as p:
-        async with await p.chromium.launch(executable_path=chrome_path) as browser:
-            await exec(browser, generate_callback)
-
-
-async def exec_local_firefox(
-    firefox_path: str, generate_callback: Callable[[], int]
-) -> None:
-    async with async_playwright() as p:
-        async with await p.firefox.launch(executable_path=firefox_path,headless=False) as browser:
-            await exec(browser, generate_callback)
+                async with await fut as browser:
+                    await exec(browser, generate_callback)
+        except PlaywrightError as e:
+            logging.error(e)
 
 async def visit_seeds(context: BrowserContext) -> None:
     for origin_id in range(1, 3):
@@ -55,13 +54,19 @@ async def visit_seeds(context: BrowserContext) -> None:
 
 async def exec(browser: Browser, generate_callback: Callable[[], int]) -> None:
     async with await browser.new_context() as context:
+
+        context.on("weberror", lambda e: logging.warning(e.error))
+
         await visit_seeds(context)
+        logging.info("Visited seeds")
 
         while True:
             input_id = generate_callback()
             url = URLScope.to_url(1, 1, input_id)
             logs = await execute(context, url)
             print(logs)
+            if len(logs) == 0:
+                raise PlaywrightError("Empty logs, context probably hangs")
 
 async def cleanup(context: BrowserContext) -> None:
     """Close all pages except the first two."""
@@ -133,3 +138,10 @@ async def click_everything(page: Page) -> None:
     links = await page.locator("a").all()
     for link in links:
         await link.click()
+
+def check_logs(logs: list[dict]) -> bool:
+    for log in logs:
+        if "[UXSS]" in log["text"]:
+            logging.info(log["text"])
+            return True
+    return False
