@@ -26,25 +26,40 @@ const { firefox } = require('playwright');
 })();
 """
 
-async def fuzz(browser_type: str, remote: bool, browser_path: str, generate_callback: Callable[[], int]):
+
+async def fuzz(
+    browser_type: str,
+    remote: bool,
+    browser_path: str,
+    generate_callback: Callable[[], int],
+    prune_callback: Callable[[int], None],
+    crash_callback: Callable[[int, list[dict]], None],
+):
     while True:
         try:
             async with async_playwright() as p:
                 if remote:
                     if browser_type == "chrome":
                         fut = p.chromium.connect_over_cdp(browser_path)
-                    else: # browser == "firefox"
+                    else:  # browser == "firefox"
                         fut = p.firefox.connect(browser_path)
                 else:
                     if browser_type == "chrome":
-                        fut = p.chromium.launch(executable_path=browser_path)
-                    else: # browser == "firefox"
-                        fut = p.firefox.launch(executable_path=browser_path,headless=False)
+                        fut = p.chromium.launch(
+                            executable_path=browser_path, headless=False
+                        )
+                    else:  # browser == "firefox"
+                        fut = p.firefox.launch(
+                            executable_path=browser_path, headless=False
+                        )
 
                 async with await fut as browser:
-                    await exec(browser, generate_callback)
+                    await exec(
+                        browser, generate_callback, prune_callback, crash_callback
+                    )
         except PlaywrightError as e:
             logging.error(e)
+
 
 async def visit_seeds(context: BrowserContext) -> None:
     for origin_id in range(1, 3):
@@ -52,7 +67,13 @@ async def visit_seeds(context: BrowserContext) -> None:
         page = await context.new_page()
         await page.goto(url)
 
-async def exec(browser: Browser, generate_callback: Callable[[], int]) -> None:
+
+async def exec(
+    browser: Browser,
+    generate_callback: Callable[[], int],
+    prune_callback: Callable[[int], None],
+    crash_callback: Callable[[int, list[dict]], None],
+) -> None:
     async with await browser.new_context() as context:
 
         context.on("weberror", lambda e: logging.warning(e.error))
@@ -64,9 +85,15 @@ async def exec(browser: Browser, generate_callback: Callable[[], int]) -> None:
             input_id = generate_callback()
             url = URLScope.to_url(1, 1, input_id)
             logs = await execute(context, url)
-            print(logs)
+
             if len(logs) == 0:
                 raise PlaywrightError("Empty logs, context probably hangs")
+            if check_logs(logs):
+                crash_callback(input_id, logs)
+            print(logs)
+
+            prune_callback(input_id)
+
 
 async def cleanup(context: BrowserContext) -> None:
     """Close all pages except the first two."""
@@ -100,11 +127,11 @@ async def execute(context: BrowserContext, url: str) -> list[dict]:
     try:
         await asyncio.wait_for(fut, timeout=TIMEOUT)
     except asyncio.TimeoutError:
-        pass
+        logging.warning("Testcase Timeout")
 
     fut = cleanup(context)
     try:
-        await asyncio.wait_for(fut, timeout=TIMEOUT)
+        await asyncio.wait_for(fut, timeout=TIMEOUT*0.5)
     except asyncio.TimeoutError:
         pass
 
@@ -138,6 +165,7 @@ async def click_everything(page: Page) -> None:
     links = await page.locator("a").all()
     for link in links:
         await link.click()
+
 
 def check_logs(logs: list[dict]) -> bool:
     for log in logs:
