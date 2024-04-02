@@ -3,10 +3,10 @@ import json
 import os
 import shutil
 
-from .generator.jabby.web_grammar.grammar import Grammar
-from .generator.jabby.generator.generator import Generator
+from .jabby.web_grammar.grammar import Grammar
+from .jabby.generator.generator import Generator
 from . import executor
-from .generator.jabby.generator.url import URLScope
+from .jabby.generator.url import URLScope
 
 
 class Fuzzer:

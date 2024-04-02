@@ -1,0 +1,38 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": "${command:pickArgs}"
+        },
+        {
+            "name": "Firefox IPCFuzzer",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "ipcrafter",
+            "args": ["-w", "./generator/webidl2json/json/firefox", "-m", "./generator/mdn", "-b", "firefox", "-s", "./server", "../gecko-dev/obj-tf-release/dist/firefox/firefox"],
+        },
+        {
+            "name": "DEBUG Firefox IPCFuzzer",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "ipcrafter",
+            "args": ["-w", "./generator/webidl2json/json/firefox", "-m", "./generator/mdn", "-b", "firefox", "-s", "./server", "../gecko-dev/obj-tf-release/dist/firefox/firefox"],
+            "env": {"DEBUG": "pw:browser"}
+        },
+        {
+            "name": "Chromium IPCFuzzer",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "ipcrafter",
+            "args": ["-w", "./generator/webidl2json/json/chromium", "-m", "./generator/mdn", "-b", "chrome", "-s", "./server", "../chromium/src/out/v122/chrome"],
+        },
+    ]
+}

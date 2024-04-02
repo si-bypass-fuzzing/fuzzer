@@ -13,7 +13,7 @@ from playwright.async_api import (
 )
 
 from typing import Callable
-from .generator.jabby.generator.url import URLScope
+from .jabby.generator.url import URLScope
 
 TIMEOUT = 3
 
