@@ -39,11 +39,17 @@ def main():
         default="./crash",
     )
     parser.add_argument(
+        "-o",
+        "--grammar-output",
+        help="path to write the grammar to",
+        type=str,
+    )
+    parser.add_argument(
         "path", metavar="PATH", help="path/url to the browser", type=str
     )
     args = parser.parse_args()
 
-    fuzzer = Fuzzer(args.browser, args.webidl_dir, args.mdn_dir, args.server_dir, args.crash_dir)
+    fuzzer = Fuzzer(args.browser, args.webidl_dir, args.mdn_dir, args.server_dir, args.crash_dir, args.grammar_output)
     fuzzer.fuzz(args.browser, args.remote, args.path)
 
 

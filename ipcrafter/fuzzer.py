@@ -6,7 +6,8 @@ import shutil
 from .jabby.web_grammar.grammar import Grammar
 from .jabby.generator.generator import Generator
 from . import executor
-from .jabby.generator.url import URLScope
+
+PRUNE:bool = False
 
 
 class Fuzzer:
@@ -17,12 +18,15 @@ class Fuzzer:
         mdn_path: str,
         server_dir: str,
         crash_dir: str,
+        grammar_output_path: str|None = None,
     ):
         self.browser = browser
         self.grammar: Grammar = Grammar()
         self.grammar.parse_dir(webidl_path)
         self.grammar.finalize()
         self.grammar.enhance_html_grammar(mdn_path)
+        if grammar_output_path is not None:
+            self.grammar.write(grammar_output_path)
         self.generator: Generator = Generator(browser, self.grammar, server_dir)
         self.server_dir: str = server_dir
         self.crash_dir: str = crash_dir
@@ -40,7 +44,8 @@ class Fuzzer:
             return self.input_id
 
         def prune(current_id: int) -> None:
-            self.generator.prune(current_id)
+            if PRUNE:
+                self.generator.prune(current_id)
 
         def save_crash(input_id: int, logs: list[dict]) -> None:
             os.makedirs(self.crash_dir, exist_ok=True)

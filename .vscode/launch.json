@@ -17,14 +17,14 @@
             "type": "debugpy",
             "request": "launch",
             "module": "ipcrafter",
-            "args": ["-w", "./generator/webidl2json/json/firefox", "-m", "./generator/mdn", "-b", "firefox", "-s", "./server", "../gecko-dev/obj-tf-release/dist/firefox/firefox"],
+            "args": ["-w", "./generator/webidl2json/json/firefox", "-m", "./generator/mdn", "-b", "firefox", "-s", "./server", "-o", "./firefox.json", "../gecko-dev/obj-tf-release/dist/firefox/firefox"],
         },
         {
             "name": "DEBUG Firefox IPCFuzzer",
             "type": "debugpy",
             "request": "launch",
             "module": "ipcrafter",
-            "args": ["-w", "./generator/webidl2json/json/firefox", "-m", "./generator/mdn", "-b", "firefox", "-s", "./server", "../gecko-dev/obj-tf-release/dist/firefox/firefox"],
+            "args": ["-w", "./generator/webidl2json/json/firefox", "-m", "./generator/mdn", "-b", "firefox", "-s", "./server", "-o", "./firefox.json", "../gecko-dev/obj-tf-release/dist/firefox/firefox"],
             "env": {"DEBUG": "pw:browser"}
         },
         {
@@ -32,7 +32,7 @@
             "type": "debugpy",
             "request": "launch",
             "module": "ipcrafter",
-            "args": ["-w", "./generator/webidl2json/json/chromium", "-m", "./generator/mdn", "-b", "chrome", "-s", "./server", "../chromium/src/out/v122/chrome"],
+            "args": ["-w", "./generator/webidl2json/json/chromium", "-m", "./generator/mdn", "-b", "chrome", "-s", "./server", "-o", "./chromium.json", "../chromium/src/out/v122/chrome"],
         },
     ]
 }
