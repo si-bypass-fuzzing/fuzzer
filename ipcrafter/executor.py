@@ -14,7 +14,8 @@ from playwright.async_api import (
 from typing import Callable
 from .jabby.generator.url import URLScope
 
-TIMEOUT = 3
+TIMEOUT: int = 3
+HEADLESS: bool = False
 
 """
 const { firefox } = require('playwright');
@@ -45,11 +46,11 @@ async def fuzz(
                 else:
                     if browser_type == "chrome":
                         fut = p.chromium.launch(
-                            executable_path=browser_path, headless=False
+                            executable_path=browser_path, headless=HEADLESS
                         )
                     else:  # browser == "firefox"
                         fut = p.firefox.launch(
-                            executable_path=browser_path, headless=False
+                            executable_path=browser_path, headless=HEADLESS
                         )
 
                 async with await fut as browser:
@@ -130,7 +131,7 @@ async def execute(context: BrowserContext, url: str) -> list[dict]:
 
     fut = cleanup(context)
     try:
-        await asyncio.wait_for(fut, timeout=TIMEOUT*0.5)
+        await asyncio.wait_for(fut, timeout=TIMEOUT * 0.5)
     except asyncio.TimeoutError:
         pass
 
