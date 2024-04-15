@@ -26,14 +26,15 @@ class Fuzzer:
         self.grammar.finalize()
         self.grammar.enhance_html_grammar(mdn_path)
         if grammar_output_path is not None:
-            self.grammar.write(grammar_output_path)
+            # self.grammar.write(grammar_output_path)
+            pass
         self.generator: Generator = Generator(browser, self.grammar, server_dir)
         self.server_dir: str = server_dir
         self.crash_dir: str = crash_dir
 
         self.input_id: int = 0
 
-    def fuzz(self, browser: str, remote: bool, browser_path: str):
+    def fuzz(self, browser: str, remote: bool, browser_path: str, num_iterations:int|None):
 
         self.generator.create_output_dirs()
         self.generator.generate_seed_pages()
@@ -49,12 +50,12 @@ class Fuzzer:
 
         def save_crash(input_id: int, logs: list[dict]) -> None:
             os.makedirs(self.crash_dir, exist_ok=True)
-            shutil.copy2(self.server_dir, os.path.join(self.crash_dir, str(input_id)))
+            shutil.copytree(self.server_dir, os.path.join(self.crash_dir, str(input_id)), dirs_exist_ok=True)
             with open(
                 os.path.join(self.crash_dir, str(input_id), "logs.json"), "w"
             ) as f:
                 json.dump(logs, f)
 
         asyncio.run(
-            executor.fuzz(browser, remote, browser_path, generate, prune, save_crash)
+            executor.fuzz(browser, remote, browser_path, generate, prune, save_crash, num_iterations)
         )

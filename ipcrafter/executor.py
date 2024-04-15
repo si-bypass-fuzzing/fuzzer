@@ -15,7 +15,7 @@ from typing import Callable
 from .jabby.generator.url import URLScope
 
 TIMEOUT: int = 3
-HEADLESS: bool = False
+HEADLESS: bool = True
 
 """
 const { firefox } = require('playwright');
@@ -27,6 +27,35 @@ const { firefox } = require('playwright');
 """
 
 
+class LoopCondition:
+    def step(self) -> bool:
+        raise NotImplementedError
+
+    def check(self) -> bool:
+        raise NotImplementedError
+
+
+class Ctr(LoopCondition):
+    def __init__(self, max: int):
+        self.i: int = 0
+        self.max: int = max
+
+    def step(self) -> bool:
+        self.i += 1
+        return self.i < self.max
+
+    def check(self) -> bool:
+        return self.i < self.max
+
+
+class AlwaysTrue(LoopCondition):
+    def step(self) -> bool:
+        return True
+
+    def check(self) -> bool:
+        return True
+
+
 async def fuzz(
     browser_type: str,
     remote: bool,
@@ -34,8 +63,17 @@ async def fuzz(
     generate_callback: Callable[[], int],
     prune_callback: Callable[[int], None],
     crash_callback: Callable[[int, list[dict]], None],
+    num_iterations: int | None,
 ):
-    while True:
+
+    cond: LoopCondition
+
+    if num_iterations is not None:
+        cond = Ctr(num_iterations)
+    else:
+        cond = AlwaysTrue()
+
+    while cond.check():
         try:
             async with async_playwright() as p:
                 if remote:
@@ -54,8 +92,8 @@ async def fuzz(
                         )
 
                 async with await fut as browser:
-                    await exec(
-                        browser, generate_callback, prune_callback, crash_callback
+                    await exec_loop(
+                        browser, generate_callback, prune_callback, crash_callback, cond
                     )
         except PlaywrightError as e:
             logging.error(e)
@@ -68,20 +106,20 @@ async def visit_seeds(context: BrowserContext) -> None:
         await page.goto(url)
 
 
-async def exec(
+async def exec_loop(
     browser: Browser,
     generate_callback: Callable[[], int],
     prune_callback: Callable[[int], None],
     crash_callback: Callable[[int, list[dict]], None],
+    cond: LoopCondition,
 ) -> None:
     async with await browser.new_context() as context:
-
         context.on("weberror", lambda e: logging.warning(e.error))
 
         await visit_seeds(context)
         logging.info("Visited seeds")
 
-        while True:
+        while cond.step():
             input_id = generate_callback()
             url = URLScope.to_url(1, 1, input_id)
             logs = await execute(context, url)
@@ -103,10 +141,9 @@ async def cleanup(context: BrowserContext) -> None:
 
 
 async def execute(context: BrowserContext, url: str) -> list[dict]:
-
     logs: list[dict] = []
 
-    def on_console(msg: ConsoleMessage):
+    async def on_console(msg: ConsoleMessage):
         """Copy the message but convert the args to json values if possible."""
         msg_copy = {
             "location": msg.location,
@@ -116,7 +153,7 @@ async def execute(context: BrowserContext, url: str) -> list[dict]:
         }
         for arg in msg.args:
             try:
-                msg_copy["args"].append(arg.json_value())
+                msg_copy["args"].append(await arg.json_value())
             except:
                 pass
         logs.append(msg_copy)

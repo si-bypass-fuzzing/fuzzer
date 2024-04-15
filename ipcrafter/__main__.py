@@ -2,6 +2,10 @@ import argparse
 from .fuzzer import Fuzzer
 
 
+from profilehooks import profile
+
+
+@profile(stdout=False, filename='baseline.prof')
 def main():
     parser = argparse.ArgumentParser(description="Fuzz Firefox/Chromium")
     parser.add_argument(
@@ -50,7 +54,7 @@ def main():
     args = parser.parse_args()
 
     fuzzer = Fuzzer(args.browser, args.webidl_dir, args.mdn_dir, args.server_dir, args.crash_dir, args.grammar_output)
-    fuzzer.fuzz(args.browser, args.remote, args.path)
+    fuzzer.fuzz(args.browser, args.remote, args.path, 20)
 
 
 if __name__ == "__main__":
