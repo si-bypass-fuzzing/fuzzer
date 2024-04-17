@@ -1,11 +1,10 @@
 import argparse
 from .fuzzer import Fuzzer
 
+# from profilehooks import profile
 
-from profilehooks import profile
 
-
-@profile(stdout=False, filename='baseline.prof')
+# @profile(stdout=False, filename='baseline.prof')
 def main():
     parser = argparse.ArgumentParser(description="Fuzz Firefox/Chromium")
     parser.add_argument(
