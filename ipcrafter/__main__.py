@@ -49,8 +49,16 @@ def main():
         type=str,
     )
     parser.add_argument(
+        "-n"
+        "--num-iterations",
+        help="number of iterations to run",
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
         "path", metavar="PATH", help="path/url to the browser", type=str
     )
+
     args = parser.parse_args()
 
     fuzzer = Fuzzer(args.browser, args.webidl_dir, args.mdn_dir, args.server_dir, args.crash_dir, args.grammar_output)

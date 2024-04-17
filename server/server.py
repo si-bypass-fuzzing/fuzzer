@@ -10,6 +10,8 @@ port = 8080
 host = ""
 directory = ""
 
+# TODO websocket
+
 @app.route('/sanitizer')
 def fetch_sanitizer():
     logging.info(f"[LOG] /sanitizer")

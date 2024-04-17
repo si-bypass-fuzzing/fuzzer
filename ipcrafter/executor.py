@@ -13,9 +13,13 @@ from playwright.async_api import (
 
 from typing import Callable
 from .jabby.generator.url import URLScope
+from timeit import default_timer as timer
+from datetime import timedelta
 
 TIMEOUT: int = 3
 HEADLESS: bool = True
+start: float
+
 
 """
 const { firefox } = require('playwright');
@@ -27,17 +31,24 @@ const { firefox } = require('playwright');
 """
 
 
-class LoopCondition:
+class Ctr:
+    def __init__(self):
+        self.i: int = 0
+
     def step(self) -> bool:
-        raise NotImplementedError
+        self.i += 1
+        return True
 
     def check(self) -> bool:
-        raise NotImplementedError
+        return True
+
+    def value(self) -> int:
+        return self.i
 
 
-class Ctr(LoopCondition):
+class MaxCtr(Ctr):
     def __init__(self, max: int):
-        self.i: int = 0
+        super().__init__()
         self.max: int = max
 
     def step(self) -> bool:
@@ -47,13 +58,6 @@ class Ctr(LoopCondition):
     def check(self) -> bool:
         return self.i < self.max
 
-
-class AlwaysTrue(LoopCondition):
-    def step(self) -> bool:
-        return True
-
-    def check(self) -> bool:
-        return True
 
 
 async def fuzz(
@@ -65,15 +69,17 @@ async def fuzz(
     crash_callback: Callable[[int, list[dict]], None],
     num_iterations: int | None,
 ):
+    global start
+    start = timer()
 
-    cond: LoopCondition
+    ctr: Ctr
 
     if num_iterations is not None:
-        cond = Ctr(num_iterations)
+        ctr = MaxCtr(num_iterations)
     else:
-        cond = AlwaysTrue()
+        ctr = Ctr()
 
-    while cond.check():
+    while ctr.check():
         try:
             async with async_playwright() as p:
                 if remote:
@@ -93,7 +99,7 @@ async def fuzz(
 
                 async with await fut as browser:
                     await exec_loop(
-                        browser, generate_callback, prune_callback, crash_callback, cond
+                        browser, generate_callback, prune_callback, crash_callback, ctr
                     )
         except PlaywrightError as e:
             logging.error(e)
@@ -111,7 +117,7 @@ async def exec_loop(
     generate_callback: Callable[[], int],
     prune_callback: Callable[[int], None],
     crash_callback: Callable[[int, list[dict]], None],
-    cond: LoopCondition,
+    ctr: Ctr,
 ) -> None:
     async with await browser.new_context() as context:
         context.on("weberror", lambda e: logging.warning(e.error))
@@ -119,8 +125,11 @@ async def exec_loop(
         await visit_seeds(context)
         logging.info("Visited seeds")
 
-        while cond.step():
+        while ctr.step():
             input_id = generate_callback()
+
+            logging.info(f"Input: {input_id}")
+
             url = URLScope.to_url(1, 1, input_id)
             logs = await execute(context, url)
 
@@ -131,6 +140,12 @@ async def exec_loop(
             print(logs)
 
             prune_callback(input_id)
+
+            current:float = timer()
+            logging.info(f"Iteration: {ctr.value()}")
+            logging.info(f"Time elapsed: {timedelta(seconds=current-start)}")
+            logging.info(f"Average time: {(current - start) / ctr.value():.2f} seconds")
+
 
 
 async def cleanup(context: BrowserContext) -> None:
