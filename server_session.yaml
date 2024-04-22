@@ -1,0 +1,12 @@
+session_name: server session
+windows:
+  - window_name: servers
+    layout: tiled
+    shell_command_before:
+      - source .venv/bin/activate
+      - cd server
+    panes:
+      - shell_command: # pane no. 1
+          - python3.12 server.py --b "127.0.0.1" -d ./origin-1
+      - shell_command: # pane no. 1
+          - python3.12 server.py --b "127.0.0.2" -d ./origin-2

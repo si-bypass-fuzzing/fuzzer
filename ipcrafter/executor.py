@@ -15,9 +15,10 @@ from typing import Callable
 from .jabby.generator.url import URLScope
 from timeit import default_timer as timer
 from datetime import timedelta
+import os
 
 TIMEOUT: int = 3
-HEADLESS: bool = True
+HEADLESS: bool = False
 start: float
 
 
@@ -69,6 +70,9 @@ async def fuzz(
     crash_callback: Callable[[int, list[dict]], None],
     num_iterations: int | None,
 ):
+    os.environ["PWDEBUG"] = "1"
+    os.environ["DEBUG"] = "pw:browser"
+
     global start
     start = timer()
 

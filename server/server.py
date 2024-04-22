@@ -88,9 +88,10 @@ def main():
     host = args.bind
     directory = args.dir if os.path.isabs(args.dir) else os.path.join(os.getcwd(), args.dir)
 
-    logging.basicConfig(filename = os.path.join(directory,"server.log"), level = logging.DEBUG)
+    # logging.basicConfig(filename = os.path.join(directory,"server.log"), level = logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
 
-    app.debug=True
+    # app.debug=True
     app.run(host=host, port=port)
 
 
