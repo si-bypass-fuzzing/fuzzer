@@ -18,7 +18,7 @@ from datetime import timedelta
 import os
 
 TIMEOUT: int = 3
-HEADLESS: bool = False
+HEADLESS: bool = True
 start: float
 
 
@@ -66,12 +66,12 @@ async def fuzz(
     remote: bool,
     browser_path: str,
     generate_callback: Callable[[], int],
-    prune_callback: Callable[[int], None],
-    crash_callback: Callable[[int, list[dict]], None],
+    prune_callback: Callable[[], None],
+    crash_callback: Callable[[list[dict]], None],
     num_iterations: int | None,
 ):
-    os.environ["PWDEBUG"] = "1"
-    os.environ["DEBUG"] = "pw:browser"
+    # os.environ["PWDEBUG"] = "1"
+    # os.environ["DEBUG"] = "pw:browser"
 
     global start
     start = timer()
@@ -107,6 +107,7 @@ async def fuzz(
                     )
         except PlaywrightError as e:
             logging.error(e)
+        prune_callback()
 
 
 async def visit_seeds(context: BrowserContext) -> None:
@@ -119,8 +120,8 @@ async def visit_seeds(context: BrowserContext) -> None:
 async def exec_loop(
     browser: Browser,
     generate_callback: Callable[[], int],
-    prune_callback: Callable[[int], None],
-    crash_callback: Callable[[int, list[dict]], None],
+    prune_callback: Callable[[], None],
+    crash_callback: Callable[[ list[dict]], None],
     ctr: Ctr,
 ) -> None:
     async with await browser.new_context() as context:
@@ -140,10 +141,10 @@ async def exec_loop(
             if len(logs) == 0:
                 raise PlaywrightError("Empty logs, context probably hangs")
             if check_logs(logs):
-                crash_callback(input_id, logs)
+                crash_callback( logs)
             print(logs)
 
-            prune_callback(input_id)
+            prune_callback()
 
             current:float = timer()
             logging.info(f"Iteration: {ctr.value()}")

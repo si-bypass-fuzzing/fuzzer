@@ -7,7 +7,7 @@ from .jabby.web_grammar.grammar import Grammar
 from .jabby.generator.generator import Generator
 from . import executor
 
-PRUNE:bool = False
+PRUNE:bool = True
 
 
 class Fuzzer:
@@ -44,15 +44,15 @@ class Fuzzer:
             self.generator.generate_input(self.input_id)
             return self.input_id
 
-        def prune(current_id: int) -> None:
+        def prune() -> None:
             if PRUNE:
-                self.generator.prune(current_id)
+                self.generator.prune(self.input_id)
 
-        def save_crash(input_id: int, logs: list[dict]) -> None:
+        def save_crash(logs: list[dict]) -> None:
             os.makedirs(self.crash_dir, exist_ok=True)
-            shutil.copytree(self.server_dir, os.path.join(self.crash_dir, str(input_id)), dirs_exist_ok=True)
+            shutil.copytree(self.server_dir, os.path.join(self.crash_dir, str(self.input_id)), dirs_exist_ok=True)
             with open(
-                os.path.join(self.crash_dir, str(input_id), "logs.json"), "w"
+                os.path.join(self.crash_dir, str(self.input_id), "logs.json"), "w"
             ) as f:
                 json.dump(logs, f)
 

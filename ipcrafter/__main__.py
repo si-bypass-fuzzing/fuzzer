@@ -61,7 +61,7 @@ def main():
     args = parser.parse_args()
 
     fuzzer = Fuzzer(args.browser, args.webidl_dir, args.mdn_dir, args.server_dir, args.crash_dir, args.grammar_output)
-    fuzzer.fuzz(args.browser, args.remote, args.path, 20)
+    fuzzer.fuzz(args.browser, args.remote, args.path, None)
 
 
 if __name__ == "__main__":
