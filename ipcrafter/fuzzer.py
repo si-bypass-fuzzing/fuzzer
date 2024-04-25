@@ -48,6 +48,11 @@ class Fuzzer:
             if PRUNE:
                 self.generator.prune(self.input_id)
 
+            if browser == "firefox":
+                for filename in os.listdir():
+                    if filename.startswith("firefox.log"):
+                        os.remove(filename)
+
         def save_crash(logs: list[dict]) -> None:
             os.makedirs(self.crash_dir, exist_ok=True)
             shutil.copytree(self.server_dir, os.path.join(self.crash_dir, str(self.input_id)), dirs_exist_ok=True)
@@ -55,6 +60,11 @@ class Fuzzer:
                 os.path.join(self.crash_dir, str(self.input_id), "logs.json"), "w"
             ) as f:
                 json.dump(logs, f)
+
+            if browser == "firefox":
+                for filename in os.listdir():
+                    if filename.startswith("firefox.log"):
+                        shutil.copy(filename, os.path.join(self.crash_dir, str(self.input_id), filename))
 
         asyncio.run(
             executor.fuzz(browser, remote, browser_path, generate, prune, save_crash, num_iterations)
