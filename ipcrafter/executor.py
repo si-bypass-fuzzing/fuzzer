@@ -66,7 +66,7 @@ async def fuzz(
     remote: bool,
     browser_path: str,
     generate_callback: Callable[[], int],
-    prune_callback: Callable[[], None],
+    prune_callback: Callable[[bool], None],
     crash_callback: Callable[[list[dict]], None],
     num_iterations: int | None,
 ):
@@ -111,7 +111,7 @@ async def fuzz(
                     )
         except PlaywrightError as e:
             logging.error(e)
-        prune_callback()
+        prune_callback(True)
 
 
 async def visit_seeds(context: BrowserContext) -> None:
@@ -124,7 +124,7 @@ async def visit_seeds(context: BrowserContext) -> None:
 async def exec_loop(
     browser: Browser,
     generate_callback: Callable[[], int],
-    prune_callback: Callable[[], None],
+    prune_callback: Callable[[bool], None],
     crash_callback: Callable[[ list[dict]], None],
     ctr: Ctr,
 ) -> None:
@@ -144,11 +144,13 @@ async def exec_loop(
 
             if len(logs) == 0:
                 raise PlaywrightError("Empty logs, context probably hangs")
-            if check_logs(logs):
-                crash_callback( logs)
             print(logs)
+            if check_logs(logs):
+                crash_callback(logs)
+                raise PlaywrightError("UXSS detected")
 
-            prune_callback()
+
+            prune_callback(False)
 
             current:float = timer()
             logging.info(f"Iteration: {ctr.value()}")

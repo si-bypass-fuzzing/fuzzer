@@ -44,14 +44,15 @@ class Fuzzer:
             self.generator.generate_input(self.input_id)
             return self.input_id
 
-        def prune() -> None:
+        def prune(browser_logs:bool) -> None:
             if PRUNE:
                 self.generator.prune(self.input_id)
 
-            if browser == "firefox":
-                for filename in os.listdir():
-                    if filename.startswith("firefox.log"):
-                        os.remove(filename)
+            if browser_logs:
+                if browser == "firefox":
+                    for filename in os.listdir():
+                        if filename.startswith("firefox.log"):
+                            os.remove(filename)
 
         def save_crash(logs: list[dict]) -> None:
             os.makedirs(self.crash_dir, exist_ok=True)
