@@ -74,8 +74,9 @@ async def fuzz(
     # os.environ["DEBUG"] = "pw:browser"
 
     if browser_type == "firefox":
-        os.environ["MOZ_LOG"] = "ipc_logger:5"
+        os.environ["MOZ_LOG"] = "uxss_logger:5"
         os.environ["MOZ_LOG_FILE"] = "firefox.log"
+        os.environ["MOZ_IPC_MESSAGE_LOG"] = "1"
 
     global start
     start = timer()
@@ -250,7 +251,7 @@ def check_logs(logs: list[dict]) -> bool:
     for filename in os.listdir():
         if filename.startswith("firefox.log"):
             with open(filename, "r") as f:
-                for line in f:
+                for line in f.readlines():
                     if "[UXSS]" in line:
                         logging.info(line)
                         return True

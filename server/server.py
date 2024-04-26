@@ -9,17 +9,22 @@ app = flask.Flask(__name__)
 port = 8080
 host = ""
 directory = ""
+victim = False
+
+MAGIC = "8bf18cb9455f4a8e8fa93d14ab5ebb5d"
 
 # TODO websocket
 
 @app.route('/sanitizer')
 def fetch_sanitizer():
     logging.info(f"[LOG] /sanitizer")
-    html = f"<html>\n{host}\n</html>"
+    html = f"<html>\n{host}\n{MAGIC if victim else ''}\n</html>"
     response = flask.Response(html)
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
+    if victim:
+        response.headers["Custom-Header"] = MAGIC
     return response
 
 @app.route('/sanitizer-cookie')
@@ -33,6 +38,8 @@ def fetch_sanitizer_credentialed():
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
+    if victim:
+        response.headers["Custom-Header"] = MAGIC
     return response
 
 # @app.route('/sop/<name>')
@@ -52,8 +59,10 @@ def send(name):
     r.headers["Pragma"] = "no-cache"
     r.headers["Expires"] = "0"
     r.headers['Cache-Control'] = 'public, max-age=0'
+    if victim:
+        r.headers["Custom-Header"] = MAGIC
     r.set_cookie('userID', 'parent')
-    
+
     return r
 
 # @app.route('/svg/<name>')
@@ -81,12 +90,14 @@ def main():
     parser.add_argument("-b", "--bind", help="host", type=str)
     parser.add_argument("-p", "--port", help="port", type=int, default=8080)
     parser.add_argument("-d", "--dir", help="dir", type=str)
+    parser.add_argument("-v", "--victim", help="victim", action="store_true")
     args = parser.parse_args()
 
-    global port, host, directory
+    global port, host, directory, victim
     port = args.port
     host = args.bind
     directory = args.dir if os.path.isabs(args.dir) else os.path.join(os.getcwd(), args.dir)
+    victim = args.victim
 
     # logging.basicConfig(filename = os.path.join(directory,"server.log"), level = logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
