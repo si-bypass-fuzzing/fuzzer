@@ -139,8 +139,9 @@ async def exec_loop(
 
             logging.info(f"Input: {input_id}")
 
-            url = URLScope.to_url(1, 1, input_id)
-            logs = await execute(context, url)
+            attacker_url = URLScope.to_url(1, 1, input_id)
+            victim_url = URLScope.to_url(2, 1, input_id)
+            logs = await execute(context, attacker_url, victim_url)
 
             if len(logs) == 0:
                 raise PlaywrightError("Empty logs, context probably hangs")
@@ -166,7 +167,7 @@ async def cleanup(context: BrowserContext) -> None:
         await context.pages[idx].close()
 
 
-async def execute(context: BrowserContext, url: str) -> list[dict]:
+async def execute(context: BrowserContext, attacker_url: str, victim_url: str) -> list[dict]:
     logs: list[dict] = []
 
     async def on_console(msg: ConsoleMessage):
@@ -186,7 +187,13 @@ async def execute(context: BrowserContext, url: str) -> list[dict]:
 
     context.on("console", on_console)
 
-    fut = visit_page(context, url)
+    fut = open_page(context, victim_url)
+    try:
+        await asyncio.wait_for(fut, timeout=TIMEOUT*0.5)
+    except asyncio.TimeoutError:
+        logging.warning("Testcase Timeout")
+
+    fut = visit_page(context, attacker_url)
     try:
         await asyncio.wait_for(fut, timeout=TIMEOUT)
     except asyncio.TimeoutError:
@@ -200,6 +207,9 @@ async def execute(context: BrowserContext, url: str) -> list[dict]:
 
     return logs
 
+async def open_page(context: BrowserContext, url: str) -> None:
+    page = await context.new_page()
+    await page.goto(url)
 
 async def visit_page(context: BrowserContext, url: str) -> None:
     page = await context.new_page()
@@ -208,6 +218,7 @@ async def visit_page(context: BrowserContext, url: str) -> None:
     idx = 2
     while idx < len(context.pages):
         await click_everything(context.pages[idx])
+        idx += 1
 
 
 async def click_everything(page: Page) -> None:
