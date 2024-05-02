@@ -18,28 +18,31 @@ MAGIC = "8bf18cb9455f4a8e8fa93d14ab5ebb5d"
 @app.route('/sanitizer')
 def fetch_sanitizer():
     logging.info(f"[LOG] /sanitizer")
-    html = f"<html>\n{host}\n{MAGIC if victim else ''}\n</html>"
-    response = flask.Response(html)
+    html = f"<html>\nsanitizer\n{host}\n{MAGIC if victim else ''}\n</html>"
+    response = flask.Response(html, content_type="text/html")
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     if victim:
         response.headers["Custom-Header"] = MAGIC
+        response.set_cookie('magic', MAGIC, secure=True, httponly=True, samesite='Strict')
+
     return response
 
 @app.route('/sanitizer-cookie')
 def fetch_sanitizer_credentialed():
     logging.info(f"[LOG] /sanitizer-cookie {flask.request.cookies}")
-    html = "<html>\n"
+    html = "<html>\nsanitizer-cookie\n"
     for k, v in flask.request.cookies.items():
         html += f"{k}: {v}\n"
     html += "</html>"
-    response = flask.Response(html)
+    response = flask.Response(html, content_type="text/html")
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     if victim:
         response.headers["Custom-Header"] = MAGIC
+        response.set_cookie('magic', MAGIC, secure=True, httponly=True, samesite='Strict')
     return response
 
 # @app.route('/sop/<name>')
@@ -54,16 +57,16 @@ def fetch_sanitizer_credentialed():
 @app.route('/<name>')
 def send(name):
     logging.info(f"[LOG] {name}")
-    r = flask.make_response(flask.send_from_directory(directory, name))
-    r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    r.headers["Pragma"] = "no-cache"
-    r.headers["Expires"] = "0"
-    r.headers['Cache-Control'] = 'public, max-age=0'
+    response = flask.make_response(flask.send_from_directory(directory, name))
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    response.headers["Content-Type"] = "text/html"
     if victim:
-        r.headers["Custom-Header"] = MAGIC
-    r.set_cookie('userID', 'parent')
+        response.headers["Custom-Header"] = MAGIC
+        response.set_cookie('magic', MAGIC, secure=True, httponly=True, samesite='Strict')
 
-    return r
+    return response
 
 # @app.route('/svg/<name>')
 # def svg_send(name):

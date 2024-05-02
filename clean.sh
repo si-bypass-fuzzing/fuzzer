@@ -1,5 +1,5 @@
 #!/bin/bash
 
 rm -rf crash
-rm firefox.log.*
+rm -rf logs
 rm server/origin-*/*.html

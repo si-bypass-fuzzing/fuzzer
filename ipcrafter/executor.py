@@ -60,11 +60,11 @@ class MaxCtr(Ctr):
         return self.i < self.max
 
 
-
 async def fuzz(
     browser_type: str,
     remote: bool,
     browser_path: str,
+    log_dir: str,
     generate_callback: Callable[[], int],
     prune_callback: Callable[[bool], None],
     crash_callback: Callable[[list[dict]], None],
@@ -75,8 +75,13 @@ async def fuzz(
 
     if browser_type == "firefox":
         os.environ["MOZ_LOG"] = "uxss_logger:5"
-        os.environ["MOZ_LOG_FILE"] = "firefox.log"
+        os.environ["MOZ_LOG_FILE"] = os.path.join(log_dir, "firefox.log")
         os.environ["MOZ_IPC_MESSAGE_LOG"] = "1"
+    elif browser_type == "chrome":
+        os.environ["CHROME_LOG_FILE"] = os.path.join(log_dir, "chrome.log")
+        os.environ["ASAN_OPTIONS"] = (
+            f"log_path={os.path.join(log_dir, f'asan.log')}:detect_odr_violation=1"
+        )
 
     global start
     start = timer()
@@ -99,7 +104,13 @@ async def fuzz(
                 else:
                     if browser_type == "chrome":
                         fut = p.chromium.launch(
-                            executable_path=browser_path, headless=HEADLESS
+                            executable_path=browser_path,
+                            headless=HEADLESS,
+                            args=[
+                                "--enable-logging",
+                                "--log-level=0",
+                                "--site-per-process",
+                            ],
                         )
                     else:  # browser == "firefox"
                         fut = p.firefox.launch(
@@ -108,7 +119,7 @@ async def fuzz(
 
                 async with await fut as browser:
                     await exec_loop(
-                        browser, generate_callback, prune_callback, crash_callback, ctr
+                        browser, log_dir, generate_callback, prune_callback, crash_callback, ctr
                     )
         except PlaywrightError as e:
             logging.error(e)
@@ -124,9 +135,10 @@ async def visit_seeds(context: BrowserContext) -> None:
 
 async def exec_loop(
     browser: Browser,
+    log_dir: str,
     generate_callback: Callable[[], int],
     prune_callback: Callable[[bool], None],
-    crash_callback: Callable[[ list[dict]], None],
+    crash_callback: Callable[[list[dict]], None],
     ctr: Ctr,
 ) -> None:
     async with await browser.new_context() as context:
@@ -147,18 +159,16 @@ async def exec_loop(
             if len(logs) == 0:
                 raise PlaywrightError("Empty logs, context probably hangs")
             print(logs)
-            if check_logs(logs):
+            if check_logs(logs, log_dir):
                 crash_callback(logs)
                 raise PlaywrightError("UXSS detected")
 
-
             prune_callback(False)
 
-            current:float = timer()
+            current: float = timer()
             logging.info(f"Iteration: {ctr.value()}")
             logging.info(f"Time elapsed: {timedelta(seconds=current-start)}")
             logging.info(f"Average time: {(current - start) / ctr.value():.2f} seconds")
-
 
 
 async def cleanup(context: BrowserContext) -> None:
@@ -168,7 +178,9 @@ async def cleanup(context: BrowserContext) -> None:
         await context.pages[idx].close()
 
 
-async def execute(context: BrowserContext, attacker_url: str, victim_url: str) -> list[dict]:
+async def execute(
+    context: BrowserContext, attacker_url: str, victim_url: str
+) -> list[dict]:
     logs: list[dict] = []
 
     async def on_console(msg: ConsoleMessage):
@@ -190,7 +202,7 @@ async def execute(context: BrowserContext, attacker_url: str, victim_url: str) -
 
     fut = open_page(context, victim_url)
     try:
-        await asyncio.wait_for(fut, timeout=TIMEOUT*0.5)
+        await asyncio.wait_for(fut, timeout=TIMEOUT * 0.5)
     except asyncio.TimeoutError:
         logging.warning("Testcase Timeout")
 
@@ -208,9 +220,11 @@ async def execute(context: BrowserContext, attacker_url: str, victim_url: str) -
 
     return logs
 
+
 async def open_page(context: BrowserContext, url: str) -> None:
     page = await context.new_page()
     await page.goto(url)
+
 
 async def visit_page(context: BrowserContext, url: str) -> None:
     page = await context.new_page()
@@ -242,17 +256,19 @@ async def click_everything(page: Page) -> None:
         await link.click()
 
 
-def check_logs(logs: list[dict]) -> bool:
+def check_logs(logs: list[dict], log_dir:str) -> bool:
     for log in logs:
         if "[UXSS]" in log["text"]:
             logging.info(log["text"])
             return True
 
-    for filename in os.listdir():
-        if filename.startswith("firefox.log"):
-            with open(filename, "r") as f:
-                for line in f.readlines():
-                    if "[UXSS]" in line:
-                        logging.info(line)
-                        return True
+    for filename in os.listdir(log_dir):
+        if filename == "asan.log":
+            logging.info("ASAN detected a bug")
+            return True
+        with open(os.path.join(log_dir, filename), "r") as f:
+            for line in f.readlines():
+                if "[UXSS]" in line:
+                    logging.info(line)
+                    return True
     return False

@@ -16,8 +16,9 @@ class Fuzzer:
         browser: str,
         webidl_path: str,
         mdn_path: str,
-        server_dir: str,
-        crash_dir: str,
+        server_dir: str="server",
+        crash_dir: str="crash",
+        log_dir: str="logs",
         grammar_output_path: str|None = None,
     ):
         self.browser = browser
@@ -26,11 +27,14 @@ class Fuzzer:
         self.grammar.finalize()
         self.grammar.enhance_html_grammar(mdn_path)
         if grammar_output_path is not None:
-            # self.grammar.write(grammar_output_path)
+            self.grammar.write(grammar_output_path)
             pass
         self.generator: Generator = Generator(browser, self.grammar, server_dir)
         self.server_dir: str = server_dir
         self.crash_dir: str = crash_dir
+        self.log_dir: str = log_dir
+
+        os.makedirs(self.log_dir, exist_ok=True)
 
         self.input_id: int = 0
 
@@ -49,10 +53,9 @@ class Fuzzer:
                 self.generator.prune(self.input_id)
 
             if browser_logs:
-                if browser == "firefox":
-                    for filename in os.listdir():
-                        if filename.startswith("firefox.log"):
-                            os.remove(filename)
+                for filename in os.listdir(self.log_dir):
+                    if not filename == ".placeholder":
+                        os.remove(os.path.join(self.log_dir, filename))
 
         def save_crash(logs: list[dict]) -> None:
             os.makedirs(self.crash_dir, exist_ok=True)
@@ -62,11 +65,8 @@ class Fuzzer:
             ) as f:
                 json.dump(logs, f)
 
-            if browser == "firefox":
-                for filename in os.listdir():
-                    if filename.startswith("firefox.log"):
-                        shutil.copy(filename, os.path.join(self.crash_dir, str(self.input_id), filename))
+            shutil.copytree(self.log_dir, os.path.join(self.crash_dir, str(self.input_id), "logs"), dirs_exist_ok=True)
 
         asyncio.run(
-            executor.fuzz(browser, remote, browser_path, generate, prune, save_crash, num_iterations)
+            executor.fuzz(browser, remote, browser_path, self.log_dir, generate, prune, save_crash, num_iterations)
         )
