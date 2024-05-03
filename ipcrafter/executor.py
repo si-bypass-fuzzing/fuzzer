@@ -259,6 +259,10 @@ async def click_everything(page: Page) -> None:
 def check_logs(logs: list[dict], log_dir:str) -> bool:
     for log in logs:
         if "[UXSS]" in log["text"]:
+            idx:int = log["text"].find("[UXSS]")
+            if idx > 0 and log["text"][idx-1] == "'":
+                # filter out false positives where the log contains some document content but not a sanitizer log
+                continue
             logging.info(log["text"])
             return True
 
