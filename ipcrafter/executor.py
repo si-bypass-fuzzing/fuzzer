@@ -72,6 +72,9 @@ async def fuzz(
 ):
     # os.environ["PWDEBUG"] = "1"
     # os.environ["DEBUG"] = "pw:browser"
+    os.environ["ASAN_OPTIONS"] = (
+        f"log_path={os.path.join(log_dir, f'asan.log')}:detect_odr_violation=1:abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1"
+    )
 
     if browser_type == "firefox":
         os.environ["MOZ_LOG"] = "uxss_logger:5"
@@ -79,9 +82,6 @@ async def fuzz(
         os.environ["MOZ_IPC_MESSAGE_LOG"] = "1"
     elif browser_type == "chrome":
         os.environ["CHROME_LOG_FILE"] = os.path.join(log_dir, "chrome.log")
-        os.environ["ASAN_OPTIONS"] = (
-            f"log_path={os.path.join(log_dir, f'asan.log')}:detect_odr_violation=1"
-        )
 
     global start
     start = timer()
@@ -114,12 +114,18 @@ async def fuzz(
                         )
                     else:  # browser == "firefox"
                         fut = p.firefox.launch(
-                            executable_path=browser_path, headless=HEADLESS
+                            executable_path=browser_path,
+                            headless=HEADLESS,
                         )
 
                 async with await fut as browser:
                     await exec_loop(
-                        browser, log_dir, generate_callback, prune_callback, crash_callback, ctr
+                        browser,
+                        log_dir,
+                        generate_callback,
+                        prune_callback,
+                        crash_callback,
+                        ctr,
                     )
         except PlaywrightError as e:
             logging.error(e)
@@ -128,7 +134,7 @@ async def fuzz(
 
 async def visit_seeds(context: BrowserContext) -> None:
     for origin_id in range(1, 3):
-        url = URLScope.to_origin(origin_id) + "/seed.html"
+        url = URLScope.to_origin(origin_id) + "/seed"
         page = await context.new_page()
         await page.goto(url)
 
@@ -256,18 +262,18 @@ async def click_everything(page: Page) -> None:
         await link.click()
 
 
-def check_logs(logs: list[dict], log_dir:str) -> bool:
+def check_logs(logs: list[dict], log_dir: str) -> bool:
     for log in logs:
         if "[UXSS]" in log["text"]:
-            idx:int = log["text"].find("[UXSS]")
-            if idx > 0 and log["text"][idx-1] == "'":
+            idx: int = log["text"].find("[UXSS]")
+            if idx > 0 and log["text"][idx - 1] == "'":
                 # filter out false positives where the log contains some document content but not a sanitizer log
                 continue
             logging.info(log["text"])
             return True
 
     for filename in os.listdir(log_dir):
-        if filename == "asan.log":
+        if filename.startswith("asan.log"):
             logging.info("ASAN detected a bug")
             return True
         with open(os.path.join(log_dir, filename), "r") as f:

@@ -7,6 +7,6 @@ windows:
       - cd server
     panes:
       - shell_command: # pane no. 1
-          - python3.12 server.py --b "127.0.0.1" -d ./origin-1
+          - python3.12 server.py -b "127.0.0.1" -d ${SERVER}/origin-1 --browser firefox
       - shell_command: # pane no. 1
-          - python3.12 server.py --b "127.0.0.2" -d ./origin-2 -v 
+          - python3.12 server.py -b "127.0.0.2" -d ${SERVER}/origin-2 -v --browser firefox

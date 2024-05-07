@@ -32,7 +32,7 @@
             "type": "debugpy",
             "request": "launch",
             "module": "ipcrafter",
-            "args": ["-w", "./generator/webidl2json/json/chromium", "-m", "./generator/mdn", "-b", "chrome", "-s", "./server", "-o", "./chromium.json", "../chromium/src/out/v122/chrome"],
+            "args": ["-w", "./generator/webidl2json/json/chromium", "-m", "./generator/mdn", "-b", "chrome", "-s", "./server", "-o", "./chromium.json", "../chromium-ipc-fuzzing/src/out/Default/chrome"],
         },
     ]
 }
