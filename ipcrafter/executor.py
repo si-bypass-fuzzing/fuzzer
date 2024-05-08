@@ -245,7 +245,7 @@ async def visit_page(context: BrowserContext, url: str) -> None:
 async def click_everything(page: Page) -> None:
     iframes: list[Frame] = page.frames
     for iframe in iframes:
-        await iframe.get_by_text("foo").click()
+        await iframe.get_by_text("foo").first.click()
         for button in await iframe.get_by_role("button").all():
             await button.click()
 
@@ -274,6 +274,13 @@ def check_logs(logs: list[dict], log_dir: str) -> bool:
 
     for filename in os.listdir(log_dir):
         if filename.startswith("asan.log"):
+            with open(os.path.join(log_dir, filename), "r") as f:
+                lines = f.readlines()
+                if "SEGV on unknown address 0x000000000000 " in lines[1]:
+                    # skip MOZ_CRASH crashes invoked by the browser on invalid ipc messages
+                    # also skip nullpointer dereferences
+                    os.remove(os.path.join(log_dir, filename))
+                    continue
             logging.info("ASAN detected a bug")
             return True
         with open(os.path.join(log_dir, filename), "r") as f:

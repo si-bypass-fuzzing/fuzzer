@@ -46,7 +46,7 @@ def fetch_sanitizer_credentialed():
     response.headers["Access-Control-Allow-Origin"] = f"http://{host}:{port}"
     response.headers["Debug-Header"] = f"{flask.request.method} SANITIZER COOKIE"
 
-    if victim and len(flask.request.cookies) > 0:
+    if victim and browser == 'chrome':
         response.headers["Custom-Header"] = MAGIC
     return response
 
@@ -137,7 +137,7 @@ def main():
     global port, host, directory, victim, browser
     port = args.port
     host = args.bind
-    directory = args.dir if os.path.isabs(args.dir) else os.path.join(os.getcwd(), args.dir)
+    directory = args.dir# if os.path.isabs(args.dir) else os.path.join(os.getcwd(), args.dir)
     victim = args.victim
     browser = args.browser
 
