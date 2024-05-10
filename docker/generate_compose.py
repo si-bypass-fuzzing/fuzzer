@@ -36,7 +36,7 @@ services:"""
       - ./volumes/{id}/crash:/app/crash
       - ./volumes/{id}/coredumps:/coredumps
     working_dir: /app
-    command: /bin/sh -c "./run.sh"
+    entrypoint: /app/run.sh
 """
     return content
 
