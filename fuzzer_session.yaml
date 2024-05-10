@@ -1,17 +1,21 @@
 session_name: fuzzer session
 windows:
   - window_name: servers
-    layout: tiled
-    shell_command_before:
-      - cd server
+    layout: main-vertical
+    options:
+      main-pane-width: '50%'
     panes:
       - shell_command: # pane no. 1
-          - python3.12 server.py -b "127.0.0.1" -d ./origin-1 --browser ${BROWSER}
-      - shell_command: # pane no. 1
-          - python3.12 server.py -b "127.0.0.2" -d ./origin-2 -v --browser ${BROWSER}
-  - window_name: fuzzer
-    layout: tiled
-    panes:
-      - shell_command: # pane no. 1
+          # - source .venv/bin/activate
           - python3.12 -m ipcrafter -w ./generator/webidl2json/json/${BROWSER} -m ./generator/mdn -b ${BROWSER} -s ./server ${BROWSER_PATH}
+      - shell_command: # pane no. 2
+          # - source .venv/bin/activate
+          - cd server
+          - python3.12 ./server.py -b "127.0.0.1" -d ./origin-1 --browser ${BROWSER}
+      - shell_command: # pane no. 3
+          # - source .venv/bin/activate
+          - cd server
+          - python3.12 ./server.py -b "127.0.0.2" -d ./origin-2 -v --browser ${BROWSER}
+
+
 

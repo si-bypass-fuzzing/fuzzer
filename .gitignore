@@ -1,6 +1,10 @@
 webidl2json/json
 firefox-ipc-fuzzing
 chrome-ipc-fuzzing
+server
+crash
+logs
+docker/volumes
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
