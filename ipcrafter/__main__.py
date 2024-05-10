@@ -42,10 +42,18 @@ def main():
         default="./crash",
     )
     parser.add_argument(
+        "-l",
+        "--log-dir",
+        help="path to directory to store browser logs",
+        type=str,
+        default="./logs",
+    )
+    parser.add_argument(
         "-o",
         "--grammar-output",
         help="path to write the grammar to",
         type=str,
+        required=False,
     )
     parser.add_argument(
         "-n"
@@ -60,7 +68,7 @@ def main():
 
     args = parser.parse_args()
 
-    fuzzer = Fuzzer(args.browser, args.webidl_dir, args.mdn_dir, server_dir=args.server_dir, crash_dir=args.crash_dir, grammar_output_path=args.grammar_output)
+    fuzzer = Fuzzer(args.browser, args.webidl_dir, args.mdn_dir, server_dir=args.server_dir, log_dir=args.log_dir, crash_dir=args.crash_dir, grammar_output_path=args.grammar_output)
     fuzzer.fuzz(args.browser, args.remote, args.path, None)
 
 

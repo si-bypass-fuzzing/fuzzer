@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import shutil
+import logging
 
 from .jabby.web_grammar.grammar import Grammar
 from .jabby.generator.generator import Generator
@@ -27,8 +28,8 @@ class Fuzzer:
         self.grammar.finalize()
         self.grammar.enhance_html_grammar(mdn_path)
         if grammar_output_path is not None:
+            logging.info("Write grammar to %s", grammar_output_path)
             self.grammar.write(grammar_output_path)
-            pass
         self.generator: Generator = Generator(browser, self.grammar, server_dir)
         self.server_dir: str = server_dir
         self.crash_dir: str = crash_dir
