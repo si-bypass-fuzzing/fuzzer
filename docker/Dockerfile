@@ -40,19 +40,18 @@ RUN chown -R user:user /app
 RUN chmod g+s /app
 
 USER ${UNAME}
-RUN echo 'export PATH=$PATH:~/.local/bin' >> $HOME/.bashrc
+RUN echo 'export PATH=$PATH:$HOME/.local/bin' >> $HOME/.bashrc
 RUN echo 'source "$HOME/.cargo/env"' >> $HOME/.bashrc
 RUN echo 'export PATH=$PATH:/app/depot_tools' >> $HOME/.bashrc
 RUN echo 'export DEPOT_TOOLS_UPDATE=0' >> $HOME/.bashrc
-RUN echo 'export LANG="en_US.UTF-8"' >> $HOME/.bashrc
 RUN echo "export LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'" >> $HOME/.bashrc
 
 # install rust 1.75.0
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain none -y
-ENV PATH="/home/${UNAME}/.cargo/bin:${PATH}"
+ENV PATH="/home/user/.cargo/bin:${PATH}"
 RUN rustup toolchain install '1.75.0'
 
-RUN python3 -m pip install --user tmuxp mercurial
+RUN pip3 install tmuxp mercurial
 
 ADD requirements.txt /tmp/requirements.txt
 RUN pip3.12 install -r /tmp/requirements.txt

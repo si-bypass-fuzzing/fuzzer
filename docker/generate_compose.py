@@ -16,6 +16,7 @@ services:"""
         content += f"""
   app{id}:
     build: .
+    user: user:user
     environment:
       - ID={id}
       - BROWSER={browser}
@@ -35,7 +36,7 @@ services:"""
       - ./volumes/{id}/crash:/app/crash
       - ./volumes/{id}/coredumps:/coredumps
     working_dir: /app
-    command: /bin/sh -c "tmuxp load fuzzer_session.yml"
+    command: /bin/sh -c "./run.sh"
 """
     return content
 
