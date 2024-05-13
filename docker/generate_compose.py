@@ -4,22 +4,24 @@ import os
 
 PATH_MAP = {
     "firefox": "./firefox-ipc-fuzzing/release-pw/dist/firefox/firefox",
-    "chrome": "./chrome-ipc-fuzzing/out/Default/chrome",
+    "chrome": "./chrome-ipc-fuzzing/src/out/Default/chrome",
     }
 
 def generate_docker_compose(browser, num_services):
-    content = """version: '3.8'
+    content = "services:"
 
-services:"""
-
-    for id in range(num_services):
+    for service_id in range(num_services):
         content += f"""
-  app{id}:
-    image: ipcrafter
-    build: .
+  ipcrafter-{service_id}:
+    image: ipcrafter"""
+        
+        if service_id == 0:
+          content += "\n    build: ."
+
+        content += f"""
     user: user:user
     environment:
-      - ID={id}
+      - ID={service_id}
       - BROWSER={browser}
       - BROWSER_PATH={PATH_MAP[browser]}
     privileged: true
@@ -31,23 +33,23 @@ services:"""
       core: -1
     volumes:
       - ..:/app
-      - ./volumes/{id}/origin-1:/app/server/origin-1
-      - ./volumes/{id}/origin-2:/app/server/origin-2
-      - ./volumes/{id}/logs:/app/logs
-      - ./volumes/{id}/crash:/app/crash
-      - ./volumes/{id}/coredumps:/coredumps
+      - ./volumes/{service_id}/origin-1:/app/server/origin-1
+      - ./volumes/{service_id}/origin-2:/app/server/origin-2
+      - ./volumes/{service_id}/logs:/app/logs
+      - ./volumes/{service_id}/crash:/app/crash
+      - ./volumes/{service_id}/coredumps:/coredumps
     working_dir: /app
     entrypoint: /app/run.sh
 """
     return content
 
 def make_dirs(num_services):
-    for id in range(num_services):
-        os.makedirs(f"./volumes/{id}/origin-1", exist_ok=True)
-        os.makedirs(f"./volumes/{id}/origin-2", exist_ok=True)
-        os.makedirs(f"./volumes/{id}/logs", exist_ok=True)
-        os.makedirs(f"./volumes/{id}/crash", exist_ok=True)
-        os.makedirs(f"./volumes/{id}/coredumps", exist_ok=True)
+    for service_id in range(num_services):
+        os.makedirs(f"./volumes/{service_id}/origin-1", exist_ok=True)
+        os.makedirs(f"./volumes/{service_id}/origin-2", exist_ok=True)
+        os.makedirs(f"./volumes/{service_id}/logs", exist_ok=True)
+        os.makedirs(f"./volumes/{service_id}/crash", exist_ok=True)
+        os.makedirs(f"./volumes/{service_id}/coredumps", exist_ok=True)
 
 def main():
     parser = argparse.ArgumentParser(description='Generate a docker-compose.yml file for multiple services.')
