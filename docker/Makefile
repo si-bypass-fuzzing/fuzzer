@@ -23,7 +23,7 @@ docker-run:
 
 
 docker-compose.yml:
-	python3 generate_compose.py -b chrome 50
+	python3 generate_compose.py -b chrome -t -n 50 
 
 compose-build: docker-compose.yml
 	docker compose build --build-arg UID=$(UID) --build-arg GID=$(GID)
