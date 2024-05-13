@@ -106,11 +106,13 @@ async def fuzz(
                         fut = p.chromium.launch(
                             executable_path=browser_path,
                             headless=HEADLESS,
+                            chromium_sandbox=True,
                             args=[
                                 "--enable-logging",
                                 "--log-level=0",
                                 "--site-per-process",
                             ],
+                            ignore_default_args=['--disable-background-networking', '--disable-ipc-flooding-protection', '--disable-dev-shm-usage', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-renderer-backgrounding']
                         )
                     else:  # browser == "firefox"
                         fut = p.firefox.launch(

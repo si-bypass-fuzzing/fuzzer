@@ -22,6 +22,7 @@ def generate_docker_compose(browser, num_services, tmpfs):
 
         content += f"""
     user: user:user
+    shm_size: '1gb'
     environment:
       - ID={service_id}
       - BROWSER={browser}
