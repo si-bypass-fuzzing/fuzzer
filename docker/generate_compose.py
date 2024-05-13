@@ -15,6 +15,7 @@ services:"""
     for id in range(num_services):
         content += f"""
   app{id}:
+    image: ipcrafter
     build: .
     user: user:user
     environment:
