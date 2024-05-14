@@ -1,0 +1,18 @@
+<html>
+<head>
+<script>
+IPCFuzzer.activate_leak_sanitizer();
+</script>
+
+<body>
+<h1>Attacker page</h1>
+
+<script>
+(async function() {
+    await window.location.reload();
+    IPCFuzzer.mutate_url('http://127.0.0.2:8080/victim.html#32154352');
+    await window.history.replaceState('foo','bar',null);
+})();
+</script>
+</body>
+</html>

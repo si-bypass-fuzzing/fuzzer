@@ -1,0 +1,12 @@
+<html>
+  <head> </head>
+  <body>
+    <h1>Victim page</h1>
+    <script>
+      // request cookies and localStorage to show that we can access them from the attacker process
+      // could also be achieved by the attacker process sending the IPC messages directly
+      console.log(document.cookie);
+      console.log(localStorage.getItem("magic"));
+    </script>
+  </body>
+</html>
