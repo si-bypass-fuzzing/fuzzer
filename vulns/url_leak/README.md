@@ -4,4 +4,4 @@
 
 ## Reproduction
 - server: `ATTACKER=vulns/url_leak/attacker VICTIM=vulns/url_leak/victim tmuxp load server_session.yml`
-- browser: `./mach run http://127.0.0.1:8080/attacker.html http://127.0.0.2:8080/victim.html`
+- browser: `MOZ_LOG="uxss_logger:5" ./mach run http://127.0.0.1:8080/attacker.html http://127.0.0.2:8080/victim.html`
