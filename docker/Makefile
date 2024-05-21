@@ -1,4 +1,4 @@
-.PHONY: docker-build compose-build docker-compose.yml
+.PHONY: docker-build compose-build docker-compose.yml clean
 all: compose-run
 
 UID = $(shell id -u)
@@ -28,6 +28,9 @@ docker-compose.yml:
 compose-build: docker-compose.yml
 	docker compose build --build-arg UID=$(UID) --build-arg GID=$(GID)
 
-compose-run:
+compose-run: compose-build
 	docker compose up
 
+clean:
+	cd .. && ./clean.sh && cd -
+	rm -f docker-compose.yml

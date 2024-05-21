@@ -8,8 +8,10 @@ from playwright.async_api import (
     Page,
     Locator,
     Frame,
+    Playwright,
     Error as PlaywrightError,
 )
+from playwright.async_api._context_manager import PlaywrightContextManager
 
 from typing import Callable
 from .jabby.generator.url import URLScope
@@ -46,7 +48,6 @@ class Ctr:
     def value(self) -> int:
         return self.i
 
-
 class MaxCtr(Ctr):
     def __init__(self, max: int):
         super().__init__()
@@ -58,7 +59,65 @@ class MaxCtr(Ctr):
 
     def check(self) -> bool:
         return self.i < self.max
+    
+class ResetCtr(Ctr):
+    def __init__(self, interval:int = 100):
+        super().__init__()
+        self.interval:int = interval
 
+    def step(self) -> bool:
+        self.i += 1
+        return self.i % self.interval != 0
+
+    def check(self) -> bool:
+        return True
+    
+def kill_chrome_processes():
+    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; killall -s 9 chrome")
+    
+class BrowserContextWrapper():
+    def __init__(self, context: BrowserContext, browser_type: str):
+        self.context = context
+        self.browser_type = browser_type
+
+    async def __aenter__(self) -> BrowserContext:
+        return self.context
+    
+    async def __aexit__(self, type, value, traceback):
+        try:
+            await asyncio.wait_for(self.context.close(), timeout=TIMEOUT * 0.25)
+        except asyncio.TimeoutError as e:
+            logging.error("BrowserContextWrapper exit timeout")
+            if self.browser_type == "chrome":
+                kill_chrome_processes()
+                try:
+                    await asyncio.wait_for(self.context.close(), timeout=TIMEOUT * 0.25)
+                except asyncio.TimeoutError:
+                    raise Exception("BrowserContextWrapper exit timeout")
+            else:
+                raise e
+
+class PlaywrightContextWrapper():
+    def __init__(self, context: PlaywrightContextManager, browser_type: str):
+        self.context = context
+        self.browser_type = browser_type
+
+    async def __aenter__(self) -> Playwright:
+        return await self.context.__aenter__()
+    
+    async def __aexit__(self, type, value, traceback):
+        try:
+            await asyncio.wait_for(self.context.__aexit__(self, type, value, traceback), timeout=TIMEOUT * 0.25)
+        except asyncio.TimeoutError as e:
+            logging.error("PlaywrightContextWrapper exit timeout")
+            if self.browser_type == "chrome":
+                kill_chrome_processes()
+                try:
+                    await asyncio.wait_for(self.context.__aexit__(self, type, value, traceback), timeout=TIMEOUT * 0.25)
+                except asyncio.TimeoutError:
+                    raise Exception("PlaywrightContextWrapper exit timeout")
+            else:
+                raise e
 
 async def fuzz(
     browser_type: str,
@@ -91,47 +150,54 @@ async def fuzz(
     if num_iterations is not None:
         ctr = MaxCtr(num_iterations)
     else:
-        ctr = Ctr()
+        ctr = ResetCtr()
 
     while ctr.check():
         try:
-            async with async_playwright() as p:
-                if remote:
-                    if browser_type == "chrome":
-                        fut = p.chromium.connect_over_cdp(browser_path)
-                    else:  # browser == "firefox"
-                        fut = p.firefox.connect(browser_path)
-                else:
-                    if browser_type == "chrome":
-                        fut = p.chromium.launch(
-                            executable_path=browser_path,
-                            headless=HEADLESS,
-                            chromium_sandbox=True,
-                            args=[
-                                "--enable-logging",
-                                "--log-level=0",
-                                "--site-per-process",
-                            ],
-                            ignore_default_args=['--disable-background-networking', '--disable-ipc-flooding-protection', '--disable-dev-shm-usage', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-renderer-backgrounding']
-                        )
-                    else:  # browser == "firefox"
-                        fut = p.firefox.launch(
-                            executable_path=browser_path,
-                            headless=HEADLESS,
-                        )
+            try:
+                async with PlaywrightContextWrapper(async_playwright(), browser_type) as p:
+                    if remote:
+                        if browser_type == "chrome":
+                            fut = p.chromium.connect_over_cdp(browser_path)
+                        else:  # browser == "firefox"
+                            fut = p.firefox.connect(browser_path)
+                    else:
+                        if browser_type == "chrome":
+                            fut = p.chromium.launch(
+                                executable_path=browser_path,
+                                headless=HEADLESS,
+                                chromium_sandbox=True,
+                                args=[
+                                    "--enable-logging",
+                                    "--log-level=0",
+                                    "--site-per-process",
+                                ],
+                                ignore_default_args=['--disable-background-networking', '--disable-ipc-flooding-protection', '--disable-dev-shm-usage', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-renderer-backgrounding']
+                            )
+                        else:  # browser == "firefox"
+                            fut = p.firefox.launch(
+                                executable_path=browser_path,
+                                headless=HEADLESS,
+                            )
 
-                async with await fut as browser:
-                    await exec_loop(
-                        browser,
-                        log_dir,
-                        generate_callback,
-                        prune_callback,
-                        crash_callback,
-                        ctr,
-                    )
-        except PlaywrightError as e:
+                    async with await fut as browser:
+                        await exec_loop(
+                            browser,
+                            browser_type,
+                            log_dir,
+                            generate_callback,
+                            prune_callback,
+                            crash_callback,
+                            ctr,
+                        )
+            except PlaywrightError as e:
+                logging.error(e)
+        except Exception as e:
+            # generic catch for playwright runtime errors
             logging.error(e)
         prune_callback(True)
+        if browser_type == "chrome":
+            kill_chrome_processes()
 
 
 async def visit_seeds(context: BrowserContext) -> None:
@@ -143,13 +209,15 @@ async def visit_seeds(context: BrowserContext) -> None:
 
 async def exec_loop(
     browser: Browser,
+    browser_type: str,
     log_dir: str,
     generate_callback: Callable[[], int],
     prune_callback: Callable[[bool], None],
     crash_callback: Callable[[list[dict]], None],
     ctr: Ctr,
 ) -> None:
-    async with await browser.new_context() as context:
+    
+    async with BrowserContextWrapper(await browser.new_context(), browser_type) as context:
         context.on("weberror", lambda e: logging.warning(e.error))
 
         await visit_seeds(context)
@@ -166,7 +234,7 @@ async def exec_loop(
 
             if len(logs) == 0:
                 raise PlaywrightError("Empty logs, context probably hangs")
-            print(logs)
+            logging.debug(logs)
             if check_logs(logs, log_dir):
                 crash_callback(logs)
                 raise PlaywrightError("UXSS detected")
@@ -177,7 +245,7 @@ async def exec_loop(
             logging.info(f"Iteration: {ctr.value()}")
             logging.info(f"Time elapsed: {timedelta(seconds=current-start)}")
             logging.info(f"Average time: {(current - start) / ctr.value():.2f} seconds")
-
+        # playwright timeout error here, probably cannot destroy context
 
 async def cleanup(context: BrowserContext) -> None:
     """Close all pages except the first two."""

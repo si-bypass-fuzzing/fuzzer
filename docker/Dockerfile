@@ -26,7 +26,7 @@ ADD install-python3.12.sh /tmp/install-python3.12.sh
 RUN /tmp/install-python3.12.sh
 
 # user applications
-RUN apt install -y  gdb build-essential lsb-release pkg-config x11vnc xvfb tmux systemd-coredump
+RUN apt install -y  gdb build-essential lsb-release pkg-config x11vnc xvfb tmux systemd-coredump psmisc
 
 # activate core dumps
 RUN sysctl -w kernel.core_pattern=/coredumps/core-%e.%p.%h.%t
