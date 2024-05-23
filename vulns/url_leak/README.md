@@ -6,6 +6,7 @@
     - https://github.com/w3c/csswg-drafts/issues/3012
     - https://bugzilla.mozilla.org/show\_bug.cgi?id=1398414
     - https://github.com/kyraseevers/Partitioning-visited-links-history
+    - https://issues.chromium.org/issues/40087397
 
 ## Reproduction
 - server: `ATTACKER=vulns/url_leak/attacker VICTIM=vulns/url_leak/victim tmuxp load server_session.yml`
