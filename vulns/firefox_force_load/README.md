@@ -15,8 +15,8 @@ _`RecvReplaceActiveSessionHistoryEntry` could also be affected._
 ## Steps to reproduce
 
 1. Start two HTTP servers, using 127.0.0.1 for the attacker and 127.0.0.2 for the victim
-    - `cd attacker && python3 -m http.server --bind 127.0.0.1 8080`
-    - `cd victim && python3 -m http.server --bind 127.0.0.2 8080`
+    - `cd attacker && python3 -m http.server --bind 127.0.0.1 8080` hosting attacker.html
+    - `cd victim && python3 -m http.server --bind 127.0.0.2 8080` hosting victim.html
 2. Patch the renderer process to simulate the compromised renderer process
     - checkout and build a current version of Firefox (e.g. `c00a6f0cea53ee7b285abb8157f764cecc52dd28`)
     - must be not a debug build, because assertions in the renderer process detect the bug and crash the process
@@ -26,7 +26,7 @@ _`RecvReplaceActiveSessionHistoryEntry` could also be affected._
     - observe that the title of the tab that the victim page is loaded in, still shows the URL of the attacker website
 
 ```html
-<!-- attacker page --->
+<!-- attacker page: http://127.0.0.1:8080/attacker.html --->
 <html>
   <body>
     <h1>Attacker page</h1>
@@ -37,6 +37,15 @@ _`RecvReplaceActiveSessionHistoryEntry` could also be affected._
         await window.location.reload();
       })();
     </script>
+  </body>
+</html>
+```
+
+```html
+<!-- victim page: http://127.0.0.2:8080/victim.html --->
+<html>
+  <body>
+    <h1>Victim page</h1>
   </body>
 </html>
 ```
