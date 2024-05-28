@@ -1,30 +1,32 @@
 # Site Isolation Bypass in Firefox
 
-A compromised renderer process can spoof the URL in a `ReplaceActiveSessionHistoryEntry` message to the browser process to create an origin confusion in the browser process thus bypassing site isolation.
+A compromised content process can spoof the URL in a `ReplaceActiveSessionHistoryEntry` message to the parent process to create an origin confusion in the parent process, thus bypassing site isolation.
 
 ## Cause
 
-The `ReplaceActiveSessionHistoryEntry` function offered by the `PContentParent` IPC interface allows the renderer process (`PContentChild`) to submit changes to the current history state. It is part of the implementation of the `history.replaceState(state, unused, url)` method of the browser API. For security reasons `url` must be valid and same-origin to the current URL. However, this security check is only implemented in the renderer process. An attacker that has exploited a memory bug in the renderer process and has achieved RCE can send a malicious IPC message to the browser process, that contains a cross-site URL.
-For the following explanation the website used by the attacker will be `https://attacker.com` and the victim website will be `https://www.victim.com`.
+The `ReplaceActiveSessionHistoryEntry` function offered by the `PContentParent` IPC interface allows the content process (`PContentChild`) to submit changes to the current history state. It is part of the implementation of the `history.replaceState(state, unused, url)` method of the browser API. For security reasons, `url` must be valid and same-origin to the current URL. However, this security check is only implemented in the content process. An attacker that has exploited a memory bug in the content process and has achieved RCE can send a malicious IPC message to the parent process, that contains a cross-site URL. This can be achieved by replacing `info->mURI` in `auto PContentChild::SendReplaceActiveSessionHistoryEntry(const MaybeDiscardedBrowsingContext& context, const SessionHistoryInfo& info) -> bool`  (in `release/ipc/ipdl/PContentChild.cpp`).
+For the following explanation, the website used by the attacker will be `https://attacker.com` and the victim website will be `https://www.victim.com`.
 
-The malicious IPC message is processed in `mozilla::ipc::IPCResult ContentParent::RecvReplaceActiveSessionHistoryEntry(const MaybeDiscarded<BrowsingContext>& aContext, SessionHistoryInfo&& aInfo)` in `dom/ipc/ContentParent.cpp`. There, the function `void CanonicalBrowsingContext::ReplaceActiveSessionHistoryEntry(SessionHistoryInfo* aInfo)` (`docshell/base/CanonicalBrowsingContext.cpp`) is called, which replaces the history state.
+The malicious `ReplaceActiveSessionHistoryEntry` IPC message is processed in `mozilla::ipc::IPCResult ContentParent::RecvReplaceActiveSessionHistoryEntry(const MaybeDiscarded<BrowsingContext>& aContext, SessionHistoryInfo&& aInfo)` in `dom/ipc/ContentParent.cpp`. There, the function `void CanonicalBrowsingContext::ReplaceActiveSessionHistoryEntry(SessionHistoryInfo* aInfo)` (`docshell/base/CanonicalBrowsingContext.cpp`) is called, which replaces the history state.
 
-By sending a `ReplaceActiveSessionHistoryEntry` IPC message with the cross-site URL `https://victim.com` and subsequently calling `location.reload();` the attacker can trick the browser process to load the cross-site document in the current compromised renderer process associcated to the site `https://attacker.com`, thus bypassing site isolation. The attacker still has RCE in the process because the process was not replaced. But the privileged browser process now assigns the site `https://victim.com` to the renderer. Thus, the attacker can for example read the cookies from and send credentialed fetch requests to `victim.com`.  
+By sending a `ReplaceActiveSessionHistoryEntry` IPC message with the cross-site URL `https://victim.com` and subsequently calling `location.reload();` the attacker can trick the browser process to load the cross-site document in the current compromised content process associated with the site `https://attacker.com`, thus bypassing site isolation. The attacker still has RCE in the process because the process was not replaced. But the privileged parent process now assigns the site `https://victim.com` to the content process. Thus, the attacker can execute JS in the context of `victim.com` and for example read the cookies from and send credentialed fetch requests to `victim.com`.  We assume a compromised content process for this site isolation bypass, which we simulate by patching the content process code.
 
-_`RecvReplaceActiveSessionHistoryEntry` could also be affected._
-## Steps to reproduce
+The function `SetActiveSessionHistoryEntry` probably also lacks security checks.
 
-1. Start two HTTP servers, using 127.0.0.1 for the attacker and 127.0.0.2 for the victim
+## Steps to reproduce (Firefox for Linux)
+
+1. Patch the content process code to simulate the compromised renderer process
+    - checkout and build a current version of Firefox (e.g., `c00a6f0cea53ee7b285abb8157f764cecc52dd28`)
+    - must not be a debug build, because assertions in the content process detect the bug and crash the process
+    - replace the method `PContentChild::SendReplaceActiveSessionHistoryEntry` in the generated `PContentChild.cpp` (`release/ipc/ipdl/PContentChild.cpp` if the attached mozconfig is used) as outlined in patch.txt or #renderer-patch below. The patch modifies the URL of the transmitted `SessionHistoryInfo`.
+2. Start two HTTP servers, using 127.0.0.1 for the attacker and 127.0.0.2 for the victim
     - `cd attacker && python3 -m http.server --bind 127.0.0.1 8080` hosting attacker.html
     - `cd victim && python3 -m http.server --bind 127.0.0.2 8080` hosting victim.html
-2. Patch the renderer process to simulate the compromised renderer process
-    - checkout and build a current version of Firefox (e.g. `c00a6f0cea53ee7b285abb8157f764cecc52dd28`)
-    - must be not a debug build, because assertions in the renderer process detect the bug and crash the process
-    - replace the method `PContentChild::SendReplaceActiveSessionHistoryEntry` in the generated `PContentChild.cpp` as outlined in the [patch below](#renderer-patch). The patch modifies the uri of the transmitted `SessionHistoryInfo`.
 3. Browse the attacker website `./mach run http://127.0.0.1:8080/attacker.html` and observe the processes.
     - in `about:processes` we can observe the attacker process being reused for the victim site
     - observe that the title of the tab that the victim page is loaded in, still shows the URL of the attacker website
 
+attacker/attacker.html:
 ```html
 <!-- attacker page: http://127.0.0.1:8080/attacker.html --->
 <html>
@@ -41,6 +43,7 @@ _`RecvReplaceActiveSessionHistoryEntry` could also be affected._
 </html>
 ```
 
+victim/victim.html:
 ```html
 <!-- victim page: http://127.0.0.2:8080/victim.html --->
 <html>
@@ -52,6 +55,7 @@ _`RecvReplaceActiveSessionHistoryEntry` could also be affected._
 
 ### Renderer Patch
 
+Replace a single function in the generated PContentChild.cpp:
 ```cpp
 // release/ipc/ipdl/PContentChild.cpp
 
@@ -121,10 +125,11 @@ ac_add_options --disable-debug
 ```
 
 ## Affected Versions
-Discovered in Firefox v121. Reproduced in recent build of bookmarks/central (`c00a6f0cea53ee7b285abb8157f764cecc52dd28`). We therefore assume, that all versions between 121 and 128 are affected. Versions before 121 are probably also affected.
+Discovered in Firefox Linux Version 121. Reproduced in recent Linux build of bookmarks/central (`c00a6f0cea53ee7b285abb8157f764cecc52dd28`). We therefore assume, that all versions since 121 are impacted. Versions before 121 are probably also impacted. Reproduced on Debian Bookworm and Fedora 39 Workstation.
+We did not test this on Windows, but since the function that misses a security check is in the part of the code that is not OS-specific, Firefox for Windows is probably also effected.
 
 ## Fix
-The function `void CanonicalBrowsingContext::ReplaceActiveSessionHistoryEntry(SessionHistoryInfo* aInfo)` (`docshell/base/CanonicalBrowsingContext.cpp`) should include a security check, which verifies that `aInfo->mURI` is valid and same-origin to the current URL.
+The function `void CanonicalBrowsingContext::ReplaceActiveSessionHistoryEntry(SessionHistoryInfo* aInfo)` (`docshell/base/CanonicalBrowsingContext.cpp`) should include a security check, which verifies that `aInfo->mURI` is valid and same-origin to the current URL. A content process sending a message that fails this check is probably compromised and should be killed.
 
 # Appendix
 
