@@ -129,7 +129,7 @@ Discovered in Firefox Linux Version 121. Reproduced in recent Linux build of boo
 We did not test this on Windows, but since the function that misses a security check is in the part of the code that is not OS-specific, Firefox for Windows is probably also effected.
 
 ## Fix
-The function `void CanonicalBrowsingContext::ReplaceActiveSessionHistoryEntry(SessionHistoryInfo* aInfo)` (`docshell/base/CanonicalBrowsingContext.cpp`) should include a security check, which verifies that `aInfo->mURI` is valid and same-origin to the current URL. A content process sending a message that fails this check is probably compromised and should be killed.
+The function `void CanonicalBrowsingContext::ReplaceActiveSessionHistoryEntry(SessionHistoryInfo* aInfo)` (`docshell/base/CanonicalBrowsingContext.cpp`) should include a security check, which verifies that `aInfo->mURI` is valid and same-origin to the current URL. A content process sending a message that fails this check is probably compromised and should be killed.+
 
 # Appendix
 
