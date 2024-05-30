@@ -344,9 +344,13 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
             # TODO: similar filter for chrome
             if browser_type == "firefox":
                 idx = log["text"].find(MAGIC)
-                if idx > 0 and log["text"][idx - 1] in ["#", "?"]:
-                    # filter out known leak of visited URLs to all renderers
-                    continue
+                if idx > 0:
+                    if log["text"][idx - 1] in ["#", "?"]:
+                        # filter out known leak of visited URLs to all renderers
+                        continue
+                    elif "[UXSS] leak in IPC message" in log["text"] and log["text"][idx-1] in ["'", '"', "`"]:
+                        # filter out leaks of victim pages due to missing CORB
+                        continue
 
             logging.info(log["text"])
             return True
@@ -365,6 +369,19 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
         with open(os.path.join(log_dir, filename), "r") as f:
             for line in f.readlines():
                 if "[UXSS]" in line:
+
+                    # TODO: similar filter for chrome
+                    if browser_type == "firefox":
+                        idx = line.find(MAGIC)
+                        if idx > 0:
+                            if line[idx - 1] in ["#", "?"]:
+                                # filter out known leak of visited URLs to all renderers
+                                continue
+                            elif "[UXSS] leak in IPC message" in line and line[idx-1] in ["'", '"', "`"]:
+                                # filter out leaks of victim pages due to missing CORB
+                                continue
+
+
                     logging.info(line)
                     return True
     return False
