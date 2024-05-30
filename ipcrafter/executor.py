@@ -15,6 +15,7 @@ from playwright.async_api._context_manager import PlaywrightContextManager
 
 from typing import Callable
 from .jabby.generator.url import URLScope
+from .jabby.generator.magic import MAGIC
 from timeit import default_timer as timer
 from datetime import timedelta
 import os
@@ -235,7 +236,7 @@ async def exec_loop(
             if len(logs) == 0:
                 raise PlaywrightError("Empty logs, context probably hangs")
             logging.debug(logs)
-            if check_logs(logs, log_dir):
+            if check_logs(browser_type,logs, log_dir):
                 crash_callback(logs)
                 raise PlaywrightError("UXSS detected")
 
@@ -332,13 +333,21 @@ async def click_everything(page: Page) -> None:
         await link.click()
 
 
-def check_logs(logs: list[dict], log_dir: str) -> bool:
+def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
     for log in logs:
         if "[UXSS]" in log["text"]:
             idx: int = log["text"].find("[UXSS]")
             if idx > 0 and log["text"][idx - 1] == "'":
                 # filter out false positives where the log contains some document content but not a sanitizer log
                 continue
+
+            # TODO: similar filter for chrome
+            if browser_type == "firefox":
+                idx = log["text"].find(MAGIC)
+                if idx > 0 and log["text"][idx - 1] in ["#", "?"]:
+                    # filter out known leak of visited URLs to all renderers
+                    continue
+
             logging.info(log["text"])
             return True
 
