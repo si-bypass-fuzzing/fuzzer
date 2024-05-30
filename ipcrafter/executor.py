@@ -336,21 +336,12 @@ async def click_everything(page: Page) -> None:
 def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
     for log in logs:
         if "[UXSS]" in log["text"]:
-            idx: int = log["text"].find("[UXSS]")
-            if idx > 0 and log["text"][idx - 1] == "'":
-                # filter out false positives where the log contains some document content but not a sanitizer log
+            if general_false_positive_filter(log["text"]):
                 continue
 
             # TODO: similar filter for chrome
-            if browser_type == "firefox":
-                idx = log["text"].find(MAGIC)
-                if idx > 0:
-                    if log["text"][idx - 1] in ["#", "?"]:
-                        # filter out known leak of visited URLs to all renderers
-                        continue
-                    elif "[UXSS] leak in IPC message" in log["text"] and log["text"][idx-1] in ["'", '"', "`"]:
-                        # filter out leaks of victim pages due to missing CORB
-                        continue
+            if browser_type == "firefox" and firefox_false_positive_filter(log["text"]):
+                continue
 
             logging.info(log["text"])
             return True
@@ -369,19 +360,28 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
         with open(os.path.join(log_dir, filename), "r") as f:
             for line in f.readlines():
                 if "[UXSS]" in line:
-
-                    # TODO: similar filter for chrome
-                    if browser_type == "firefox":
-                        idx = line.find(MAGIC)
-                        if idx > 0:
-                            if line[idx - 1] in ["#", "?"]:
-                                # filter out known leak of visited URLs to all renderers
-                                continue
-                            elif "[UXSS] leak in IPC message" in line and line[idx-1] in ["'", '"', "`"]:
-                                # filter out leaks of victim pages due to missing CORB
-                                continue
-
+                    if browser_type == "firefox" and firefox_false_positive_filter(line):
+                        continue
 
                     logging.info(line)
                     return True
+    return False
+
+    # TODO: similar filter for chrome
+
+def general_false_positive_filter(log: str) -> bool:
+    idx: int = log.find("[UXSS]")
+    if idx > 0 and log[idx - 1] == "'":
+        return True
+    return False
+
+def firefox_false_positive_filter(log: str) -> bool:     
+    idx:int = log.find(MAGIC)
+    if idx > 0:
+        if log[idx - 1] in ["#", "?", "/"]:
+            # filter out known leak of visited URLs to all renderers
+            return True
+        elif "[UXSS] leak in IPC message" in log and log[idx-1] in ["'", '"', "`"]:
+            # filter out leaks of victim pages due to missing CORB
+            return True
     return False
