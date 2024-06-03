@@ -381,7 +381,7 @@ def firefox_false_positive_filter(log: str) -> bool:
         if log[idx - 1] in ["#", "?", "/"]:
             # filter out known leak of visited URLs to all renderers
             return True
-        elif "[UXSS] leak in IPC message" in log:
+        if "[UXSS] leak in IPC message" in log:
             if not "[/UXSS]" in log:
                 # filter incomplete lines
                 return True

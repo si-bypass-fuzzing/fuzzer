@@ -39,6 +39,7 @@ def generate_docker_compose(browser, num_services, tmpfs):
       - {tmp_data_root}/volumes/{service_id}/origin-1:/app/server/origin-1
       - {tmp_data_root}/volumes/{service_id}/origin-2:/app/server/origin-2
       - {tmp_data_root}/volumes/{service_id}/logs:/app/logs
+      - {tmp_data_root}/volumes/{service_id}/tmp:/tmp
       - ./volumes/{service_id}/crash:/app/crash
       - ./volumes/{service_id}/coredumps:/coredumps
     working_dir: /app
@@ -55,6 +56,7 @@ def make_dirs(num_services, tmpfs):
           os.makedirs(f"/dev/shm/ipcfuzzing/volumes/{service_id}/origin-1", exist_ok=True)
           os.makedirs(f"/dev/shm/ipcfuzzing/volumes/{service_id}/origin-2", exist_ok=True)
           os.makedirs(f"/dev/shm/ipcfuzzing/volumes/{service_id}/logs", exist_ok=True)
+          os.makedirs(f"/dev/shm/ipcfuzzing/volumes/{service_id}/tmp", exist_ok=True)
         else:
           os.makedirs(f"./volumes/{service_id}/origin-1", exist_ok=True)
           os.makedirs(f"./volumes/{service_id}/origin-2", exist_ok=True)
