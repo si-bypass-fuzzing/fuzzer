@@ -236,7 +236,7 @@ async def exec_loop(
             if len(logs) == 0:
                 raise PlaywrightError("Empty logs, context probably hangs")
             logging.debug(logs)
-            if check_logs(browser_type,logs, log_dir):
+            if check_logs(browser_type, logs, log_dir):
                 crash_callback(logs)
                 raise PlaywrightError("UXSS detected")
 
@@ -334,6 +334,7 @@ async def click_everything(page: Page) -> None:
 
 
 def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
+    assert browser_type in ["firefox", "chrome"]
     for log in logs:
         if "[UXSS]" in log["text"]:
             if general_false_positive_filter(log["text"]):
@@ -344,6 +345,7 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
                 continue
 
             logging.info(log["text"])
+            write_cause(log["text"], log_dir)
             return True
 
     for filename in os.listdir(log_dir):
@@ -356,6 +358,7 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
                     os.remove(os.path.join(log_dir, filename))
                     continue
             logging.info("ASAN detected a bug")
+            write_cause("ASAN", log_dir)
             return True
         with open(os.path.join(log_dir, filename), "r") as f:
             for line in f.readlines():
@@ -364,6 +367,7 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
                         continue
 
                     logging.info(line)
+                    write_cause(line, log_dir)
                     return True
     return False
 
@@ -371,7 +375,7 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
 
 def general_false_positive_filter(log: str) -> bool:
     idx: int = log.find("[UXSS]")
-    if idx > 0 and log[idx - 1] == "'":
+    if idx > 0 and log[idx - 1] in ["'", '"', "`"]:
         return True
     return False
 
@@ -389,3 +393,7 @@ def firefox_false_positive_filter(log: str) -> bool:
                 # filter out leaks of victim pages due to missing CORB
                 return True
     return False
+
+def write_cause(cause:str, log_dir:str):
+    with open(os.path.join(log_dir, "cause.txt"), "w") as f:
+        f.write(cause)
