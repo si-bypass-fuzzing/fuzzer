@@ -75,6 +75,9 @@ class ResetCtr(Ctr):
     
 def kill_chrome_processes():
     os.system("killall -s 9 'playwright.sh'; killall -s 9 node; killall -s 9 chrome")
+
+def kill_firefox_processes():
+    os.system("killall -s 9 'playwright.sh'; killall -s 9 node")
     
 class BrowserContextWrapper():
     def __init__(self, context: BrowserContext, browser_type: str):
@@ -91,12 +94,13 @@ class BrowserContextWrapper():
             logging.error("BrowserContextWrapper exit timeout")
             if self.browser_type == "chrome":
                 kill_chrome_processes()
-                try:
-                    await asyncio.wait_for(self.context.close(), timeout=TIMEOUT * 0.25)
-                except asyncio.TimeoutError:
-                    raise Exception("BrowserContextWrapper exit timeout")
-            else:
-                raise e
+            elif self.browser_type == "firefox":
+                kill_firefox_processes()
+            try:
+                await asyncio.wait_for(self.context.close(), timeout=TIMEOUT * 0.25)
+            except asyncio.TimeoutError:
+                raise Exception("BrowserContextWrapper exit timeout")
+            
 
 class PlaywrightContextWrapper():
     def __init__(self, context: PlaywrightContextManager, browser_type: str):
@@ -113,12 +117,13 @@ class PlaywrightContextWrapper():
             logging.error("PlaywrightContextWrapper exit timeout")
             if self.browser_type == "chrome":
                 kill_chrome_processes()
-                try:
-                    await asyncio.wait_for(self.context.__aexit__(self, type, value, traceback), timeout=TIMEOUT * 0.25)
-                except asyncio.TimeoutError:
-                    raise Exception("PlaywrightContextWrapper exit timeout")
-            else:
-                raise e
+            elif self.browser_type == "firefox":
+                kill_firefox_processes()
+            try:
+                await asyncio.wait_for(self.context.__aexit__(self, type, value, traceback), timeout=TIMEOUT * 0.25)
+            except asyncio.TimeoutError:
+                raise Exception("PlaywrightContextWrapper exit timeout")
+
 
 async def fuzz(
     browser_type: str,
@@ -199,6 +204,8 @@ async def fuzz(
         prune_callback(True)
         if browser_type == "chrome":
             kill_chrome_processes()
+        elif browser_type == "firefox":
+            kill_firefox_processes()
 
 
 async def visit_seeds(context: BrowserContext) -> None:
@@ -379,19 +386,17 @@ def general_false_positive_filter(log: str) -> bool:
         return True
     return False
 
-def firefox_false_positive_filter(log: str) -> bool:     
-    idx:int = log.find(MAGIC)
-    if idx > 0:
+def firefox_false_positive_filter(log: str) -> bool:
+    if "D/uxss_logger" in log:
+        idx:int = log.find(MAGIC)
+        if idx < 1:
+            return True
         if log[idx - 1] in ["#", "?", "/"]:
             # filter out known leak of visited URLs to all renderers
             return True
-        if "[UXSS] leak in IPC message" in log:
-            if not "[/UXSS]" in log:
-                # filter incomplete lines
-                return True
-            if log[idx-1] in ["'", '"', "`"]:
-                # filter out leaks of victim pages due to missing CORB
-                return True
+        if log[idx-1] in ["'", '"', "`"]:
+            # filter out leaks of victim pages due to missing CORB
+            return True            
     return False
 
 def write_cause(cause:str, log_dir:str):
