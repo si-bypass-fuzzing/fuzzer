@@ -77,7 +77,7 @@ def kill_chrome_processes():
     os.system("killall -s 9 'playwright.sh'; killall -s 9 node; killall -s 9 chrome")
 
 def kill_firefox_processes():
-    os.system("killall -s 9 'playwright.sh'; killall -s 9 node")
+    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; rm -rf '/tmp/playwright-*'")
     
 class BrowserContextWrapper():
     def __init__(self, context: BrowserContext, browser_type: str):
