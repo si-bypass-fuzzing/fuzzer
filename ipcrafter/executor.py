@@ -74,10 +74,10 @@ class ResetCtr(Ctr):
         return True
     
 def kill_chrome_processes():
-    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; killall -s 9 chrome")
+    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; killall -s 9 chrome; rm -rf '/tmp/playwright*'")
 
 def kill_firefox_processes():
-    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; rm -rf '/tmp/playwright-*'")
+    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; rm -rf '/tmp/playwright*'")
     
 class BrowserContextWrapper():
     def __init__(self, context: BrowserContext, browser_type: str):
@@ -347,8 +347,9 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
             if general_false_positive_filter(log["text"]):
                 continue
 
-            # TODO: similar filter for chrome
             if browser_type == "firefox" and firefox_false_positive_filter(log["text"]):
+                continue
+            elif browser_type == "chrome" and chrome_false_positive_filter(log["text"]):
                 continue
 
             logging.info(log["text"])
@@ -372,6 +373,8 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
                 if "[UXSS]" in line:
                     if browser_type == "firefox" and firefox_false_positive_filter(line):
                         continue
+                    elif browser_type == "chrome" and chrome_false_positive_filter(line):
+                        continue
 
                     logging.info(line)
                     write_cause(line, log_dir)
@@ -383,6 +386,11 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
 def general_false_positive_filter(log: str) -> bool:
     idx: int = log.find("[UXSS]")
     if idx > 0 and log[idx - 1] in ["'", '"', "`"]:
+        return True
+    return False
+
+def chrome_false_positive_filter(log: str) -> bool:
+    if "http\\x00\\x00\\x00\\x00(\\x00\\x00\\x00 \\x00\\x00\\x008bf18cb9455f4a8e8fa93d14ab5ebb5d" in log:
         return True
     return False
 
