@@ -6,6 +6,7 @@ import struct
 import os
 import csv
 from multiprocessing import shared_memory
+import logging
 
 SHM_NAME:str = "/coverage_shm"
 SHM_SIZE:int = 0x100000
@@ -23,6 +24,8 @@ class ShmBitmap:
         #         self.shm[i] = 0
 
         # Open the shared memory object
+        if os.path.exists('/dev/shm' + SHM_NAME):
+            os.remove('/dev/shm' + SHM_NAME)
         self.shm: shared_memory.SharedMemory = shared_memory.SharedMemory(name=SHM_NAME, create=True, size=SHM_SIZE)
         self.shm.buf[:SHM_SIZE] = bytes(SHM_SIZE)
 
@@ -49,22 +52,27 @@ class ShmBitmap:
             self.is_active = False
 
     def get_num_edges(self) -> int:
+        if self.num_edges == 0:
+            self.update_edge_count()
         return self.num_edges
 
     def get_num_bytes(self) -> int:
+        if self.num_bytes == 0:
+            self.update_edge_count()
         return self.num_bytes
 
     def get_edges(self) -> bytes:
         return self.shm.buf[4:self.num_bytes]
 
     def bit_count(self) -> int:
+        if self.num_edges == 0:
+            self.update_edge_count()
         return sum(bin(byte).count('1') for byte in self.get_edges())
 
     def update_edge_count(self):
         self.num_edges:int = struct.unpack('I', self.shm.buf[:4])[0]
         self.num_bytes:int = self.num_edges // 8 + (1 if self.num_edges % 8 != 0 else 0)
-
-
+        logging.info("Updated number of edges: %d", self.num_edges)
 
 class CoverageCollector:
     def __init__(self):
@@ -96,8 +104,9 @@ class CoverageCollector:
         self.out_file.flush()
 
     def write_coverage(self, input_id: int):
-        print(f"Writing coverage for input {input_id}: {self.get_coverage()} edges covered")
+        logging.info(f"Coverage {input_id}: {self.get_coverage()} edges covered")
         if self.csv_writer is None:
+            logging.error("Output file not initialized")
             self.init_output_file()
         assert self.csv_writer is not None and self.out_file is not None
         self.csv_writer.writerow([input_id, self.get_coverage()])

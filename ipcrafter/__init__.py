@@ -42,7 +42,7 @@ sh = logging.StreamHandler(sys.stdout)
 sh.setFormatter(custom_formatter)
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     handlers=[
         # logging.FileHandler("grammar.log"),
         sh

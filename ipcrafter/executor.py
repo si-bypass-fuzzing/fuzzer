@@ -146,7 +146,7 @@ async def fuzz(
     if browser_type == "firefox":
         os.environ["MOZ_LOG"] = "uxss_logger:5"
         os.environ["MOZ_LOG_FILE"] = os.path.join(log_dir, "firefox.log")
-        os.environ["MOZ_IPC_MESSAGE_LOG"] = "1"
+        # os.environ["MOZ_IPC_MESSAGE_LOG"] = "1"
     elif browser_type == "chrome":
         os.environ["CHROME_LOG_FILE"] = os.path.join(log_dir, "chrome.log")
 

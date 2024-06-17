@@ -6,3 +6,4 @@ rm -f server/origin-*/*.html
 rm -f server/origin-*/*.js
 rm -rf docker/volumes/*
 rm -rf /dev/shm/ipcfuzzing/volumes/*
+rm -f coverage.csv
