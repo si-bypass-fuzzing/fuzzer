@@ -19,8 +19,9 @@ from .jabby.generator.magic import MAGIC
 from timeit import default_timer as timer
 from datetime import timedelta
 import os
+from .shm import CoverageCollector, SHM_NAME, SHM_SIZE
 
-TIMEOUT: int = 3
+TIMEOUT: int = 6
 HEADLESS: bool = True
 start: float
 
@@ -141,6 +142,7 @@ async def fuzz(
         f"log_path={os.path.join(log_dir, f'asan.log')}:detect_odr_violation=1:abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1"
     )
 
+    os.environ["SHM_ID"] = SHM_NAME
     if browser_type == "firefox":
         os.environ["MOZ_LOG"] = "uxss_logger:5"
         os.environ["MOZ_LOG_FILE"] = os.path.join(log_dir, "firefox.log")
@@ -158,54 +160,56 @@ async def fuzz(
     else:
         ctr = ResetCtr()
 
-    while ctr.check():
-        try:
+    with CoverageCollector() as cov:
+        while ctr.check():
             try:
-                async with PlaywrightContextWrapper(async_playwright(), browser_type) as p:
-                    if remote:
-                        if browser_type == "chrome":
-                            fut = p.chromium.connect_over_cdp(browser_path)
-                        else:  # browser == "firefox"
-                            fut = p.firefox.connect(browser_path)
-                    else:
-                        if browser_type == "chrome":
-                            fut = p.chromium.launch(
-                                executable_path=browser_path,
-                                headless=HEADLESS,
-                                chromium_sandbox=True,
-                                args=[
-                                    "--enable-logging",
-                                    "--log-level=0",
-                                    "--site-per-process",
-                                ],
-                                ignore_default_args=['--disable-background-networking', '--disable-ipc-flooding-protection', '--disable-dev-shm-usage', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-renderer-backgrounding']
-                            )
-                        else:  # browser == "firefox"
-                            fut = p.firefox.launch(
-                                executable_path=browser_path,
-                                headless=HEADLESS,
-                            )
+                try:
+                    async with PlaywrightContextWrapper(async_playwright(), browser_type) as p:
+                        if remote:
+                            if browser_type == "chrome":
+                                fut = p.chromium.connect_over_cdp(browser_path)
+                            else:  # browser == "firefox"
+                                fut = p.firefox.connect(browser_path)
+                        else:
+                            if browser_type == "chrome":
+                                fut = p.chromium.launch(
+                                    executable_path=browser_path,
+                                    headless=HEADLESS,
+                                    chromium_sandbox=True,
+                                    args=[
+                                        "--enable-logging",
+                                        "--log-level=0",
+                                        "--site-per-process",
+                                    ],
+                                    ignore_default_args=['--disable-background-networking', '--disable-ipc-flooding-protection', '--disable-dev-shm-usage', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-renderer-backgrounding']
+                                )
+                            else:  # browser == "firefox"
+                                fut = p.firefox.launch(
+                                    executable_path=browser_path,
+                                    headless=HEADLESS,
+                                )
 
-                    async with await fut as browser:
-                        await exec_loop(
-                            browser,
-                            browser_type,
-                            log_dir,
-                            generate_callback,
-                            prune_callback,
-                            crash_callback,
-                            ctr,
-                        )
-            except PlaywrightError as e:
+                        async with await fut as browser:
+                            await exec_loop(
+                                browser,
+                                browser_type,
+                                log_dir,
+                                generate_callback,
+                                prune_callback,
+                                crash_callback,
+                                ctr,
+                                cov
+                            )
+                except PlaywrightError as e:
+                    logging.error(e)
+            except Exception as e:
+                # generic catch for playwright runtime errors
                 logging.error(e)
-        except Exception as e:
-            # generic catch for playwright runtime errors
-            logging.error(e)
-        prune_callback(True)
-        if browser_type == "chrome":
-            kill_chrome_processes()
-        elif browser_type == "firefox":
-            kill_firefox_processes()
+            prune_callback(True)
+            if browser_type == "chrome":
+                kill_chrome_processes()
+            elif browser_type == "firefox":
+                kill_firefox_processes()
 
 
 async def visit_seeds(context: BrowserContext) -> None:
@@ -223,8 +227,9 @@ async def exec_loop(
     prune_callback: Callable[[bool], None],
     crash_callback: Callable[[list[dict]], None],
     ctr: Ctr,
+    coverage: CoverageCollector|None,
 ) -> None:
-    
+
     async with BrowserContextWrapper(await browser.new_context(), browser_type) as context:
         context.on("weberror", lambda e: logging.warning(e.error))
 
@@ -239,6 +244,9 @@ async def exec_loop(
             attacker_url = URLScope.to_url(1, 1, input_id)
             victim_url = URLScope.to_url(2, 1, input_id)
             logs = await execute(context, attacker_url, victim_url)
+
+            if coverage is not None:
+                coverage.write_coverage(input_id)
 
             if len(logs) == 0:
                 raise PlaywrightError("Empty logs, context probably hangs")
