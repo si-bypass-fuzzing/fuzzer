@@ -75,10 +75,10 @@ class ResetCtr(Ctr):
         return True
     
 def kill_chrome_processes():
-    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; killall -s 9 chrome; rm -rf '/tmp/playwright*'")
+    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; killall -s 9 chrome; find /tmp -type f -name 'playwright*' -delete")
 
 def kill_firefox_processes():
-    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; rm -rf '/tmp/playwright*'")
+    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; find /tmp -type f -name 'playwright*' -delete")
     
 class BrowserContextWrapper():
     def __init__(self, context: BrowserContext, browser_type: str):
