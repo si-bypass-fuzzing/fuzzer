@@ -21,7 +21,7 @@ from datetime import timedelta
 import os
 from .shm import CoverageCollector, SHM_NAME, SHM_SIZE
 
-TIMEOUT: int = 6
+TIMEOUT: int = 3
 HEADLESS: bool = True
 start: float
 
