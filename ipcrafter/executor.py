@@ -75,10 +75,10 @@ class ResetCtr(Ctr):
         return True
     
 def kill_chrome_processes():
-    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; killall -s 9 chrome; find /tmp -type f -name 'playwright*' -delete")
+    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; killall -s 9 chrome; find /tmp -type f -name 'playwright*' -delete 2>/dev/null")
 
 def kill_firefox_processes():
-    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; find /tmp -type f -name 'playwright*' -delete")
+    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; find /tmp -type f -name 'playwright*' -delete 2>/dev/null")
     
 class BrowserContextWrapper():
     def __init__(self, context: BrowserContext, browser_type: str):
@@ -134,6 +134,7 @@ async def fuzz(
     generate_callback: Callable[[], int],
     prune_callback: Callable[[bool], None],
     crash_callback: Callable[[list[dict]], None],
+    collect_coverage: bool,
     num_iterations: int | None,
 ):
     # os.environ["PWDEBUG"] = "1"
@@ -142,7 +143,8 @@ async def fuzz(
         f"log_path={os.path.join(log_dir, f'asan.log')}:detect_odr_violation=1:abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1"
     )
 
-    os.environ["SHM_ID"] = SHM_NAME
+    if collect_coverage:
+        os.environ["SHM_ID"] = SHM_NAME
     if browser_type == "firefox":
         os.environ["MOZ_LOG"] = "uxss_logger:5"
         os.environ["MOZ_LOG_FILE"] = os.path.join(log_dir, "firefox.log")
@@ -160,56 +162,57 @@ async def fuzz(
     else:
         ctr = ResetCtr()
 
-    with CoverageCollector() as cov:
-        while ctr.check():
+    
+    cov: CoverageCollector|None = CoverageCollector() if collect_coverage else None
+    while ctr.check():
+        try:
             try:
-                try:
-                    async with PlaywrightContextWrapper(async_playwright(), browser_type) as p:
-                        if remote:
-                            if browser_type == "chrome":
-                                fut = p.chromium.connect_over_cdp(browser_path)
-                            else:  # browser == "firefox"
-                                fut = p.firefox.connect(browser_path)
-                        else:
-                            if browser_type == "chrome":
-                                fut = p.chromium.launch(
-                                    executable_path=browser_path,
-                                    headless=HEADLESS,
-                                    chromium_sandbox=True,
-                                    args=[
-                                        "--enable-logging",
-                                        "--log-level=0",
-                                        "--site-per-process",
-                                    ],
-                                    ignore_default_args=['--disable-background-networking', '--disable-ipc-flooding-protection', '--disable-dev-shm-usage', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-renderer-backgrounding']
-                                )
-                            else:  # browser == "firefox"
-                                fut = p.firefox.launch(
-                                    executable_path=browser_path,
-                                    headless=HEADLESS,
-                                )
-
-                        async with await fut as browser:
-                            await exec_loop(
-                                browser,
-                                browser_type,
-                                log_dir,
-                                generate_callback,
-                                prune_callback,
-                                crash_callback,
-                                ctr,
-                                cov
+                async with PlaywrightContextWrapper(async_playwright(), browser_type) as p:
+                    if remote:
+                        if browser_type == "chrome":
+                            fut = p.chromium.connect_over_cdp(browser_path)
+                        else:  # browser == "firefox"
+                            fut = p.firefox.connect(browser_path)
+                    else:
+                        if browser_type == "chrome":
+                            fut = p.chromium.launch(
+                                executable_path=browser_path,
+                                headless=HEADLESS,
+                                chromium_sandbox=True,
+                                args=[
+                                    "--enable-logging",
+                                    "--log-level=0",
+                                    "--site-per-process",
+                                ],
+                                ignore_default_args=['--disable-background-networking', '--disable-ipc-flooding-protection', '--disable-dev-shm-usage', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-renderer-backgrounding']
                             )
-                except PlaywrightError as e:
-                    logging.error(e)
-            except Exception as e:
-                # generic catch for playwright runtime errors
+                        else:  # browser == "firefox"
+                            fut = p.firefox.launch(
+                                executable_path=browser_path,
+                                headless=HEADLESS,
+                            )
+
+                    async with await fut as browser:
+                        await exec_loop(
+                            browser,
+                            browser_type,
+                            log_dir,
+                            generate_callback,
+                            prune_callback,
+                            crash_callback,
+                            ctr,
+                            cov
+                        )
+            except PlaywrightError as e:
                 logging.error(e)
-            prune_callback(True)
-            if browser_type == "chrome":
-                kill_chrome_processes()
-            elif browser_type == "firefox":
-                kill_firefox_processes()
+        except Exception as e:
+            # generic catch for playwright runtime errors
+            logging.error(e)
+        prune_callback(True)
+        if browser_type == "chrome":
+            kill_chrome_processes()
+        elif browser_type == "firefox":
+            kill_firefox_processes()
 
 
 async def visit_seeds(context: BrowserContext) -> None:

@@ -39,7 +39,7 @@ class Fuzzer:
 
         self.input_id: int = 0
 
-    def fuzz(self, browser: str, remote: bool, browser_path: str, num_iterations:int|None):
+    def fuzz(self, browser: str, remote: bool, browser_path: str, collect_coverage:bool, num_iterations:int|None):
 
         self.generator.create_output_dirs()
         self.generator.generate_seed_pages()
@@ -69,5 +69,5 @@ class Fuzzer:
             shutil.copytree(self.log_dir, os.path.join(self.crash_dir, str(self.input_id), "logs"), dirs_exist_ok=True)
 
         asyncio.run(
-            executor.fuzz(browser, remote, browser_path, self.log_dir, generate, prune, save_crash, num_iterations)
+            executor.fuzz(browser, remote, browser_path, self.log_dir, generate, prune, save_crash, collect_coverage, num_iterations)
         )

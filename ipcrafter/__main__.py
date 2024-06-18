@@ -65,11 +65,12 @@ def main():
     parser.add_argument(
         "path", metavar="PATH", help="path/url to the browser", type=str
     )
+    parser.add_argument("-t", "--coverage", help="enable coverage", action="store_true")
 
     args = parser.parse_args()
 
     fuzzer = Fuzzer(args.browser, args.webidl_dir, args.mdn_dir, server_dir=args.server_dir, log_dir=args.log_dir, crash_dir=args.crash_dir, grammar_output_path=args.grammar_output)
-    fuzzer.fuzz(args.browser, args.remote, args.path, None)
+    fuzzer.fuzz(args.browser, args.remote, args.path, args.coverage, None)
 
 
 if __name__ == "__main__":
