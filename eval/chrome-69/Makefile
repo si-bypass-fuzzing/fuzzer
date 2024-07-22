@@ -13,16 +13,14 @@ docker-run-root:
 	docker run -it --rm -u root --cap-add=SYS_ADMIN \
 		-v $(PWD)/app:/app \
 		-v $(PWD)/setup.sh:/app/setup.sh:ro \
-		-v $(PWD)/patch.diff:/app/patch.diff:ro \
 		builder-67 /bin/bash
 
 docker-run:
 	docker run -it --rm -u user --cap-add=SYS_ADMIN \
 		-v $(PWD)/app:/app \
 		-v $(PWD)/setup.sh:/app/setup.sh:ro \
-		-v $(PWD)/patch.diff:/app/patch.diff:ro \
-		-v $(PWD)/fuzzorigin:/app/fuzzorigin \
 		-p 5900:5900 \
+		-v "$$SSH_AUTH_SOCK:$$SSH_AUTH_SOCK" -e SSH_AUTH_SOCK=$$SSH_AUTH_SOCK \
 		builder-67 /bin/bash
 
 
@@ -31,3 +29,6 @@ docker-run:
 
 # 		--network=host 
 #		--user $(shell id -u):$(shell id -g) \
+		#  \
+		#		--network host \
+		# 		-v $(PWD)/patch.diff:/app/patch.diff:ro \
