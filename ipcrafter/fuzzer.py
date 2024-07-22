@@ -3,24 +3,63 @@ import json
 import os
 import shutil
 import logging
+from typing import Callable
 
 from .jabby.web_grammar.grammar import Grammar
 from .jabby.generator.generator import Generator
 from . import executor
 
-PRUNE:bool = True
+PRUNE: bool = True
 
 
 class Fuzzer:
+    def fuzz(
+        self,
+        browser: str,
+        remote: bool,
+        browser_path: str,
+        collect_coverage: bool,
+        num_iterations: int | None,
+    ) -> None:
+        raise NotImplementedError
+
+    def run(
+        self,
+        browser_type: str,
+        remote: bool,
+        browser_path: str,
+        log_dir: str,
+        generate_callback: Callable[[], int],
+        prune_callback: Callable[[bool], None],
+        crash_callback: Callable[[list[dict]], None],
+        collect_coverage: bool,
+        num_iterations: int | None,
+    ) -> None:
+        asyncio.run(
+            executor.fuzz(
+                browser_type,
+                remote,
+                browser_path,
+                log_dir,
+                generate_callback,
+                prune_callback,
+                crash_callback,
+                collect_coverage,
+                num_iterations,
+            )
+        )
+
+
+class IPCFuzzer(Fuzzer):
     def __init__(
         self,
         browser: str,
         webidl_path: str,
         mdn_path: str,
-        server_dir: str="server",
-        crash_dir: str="crash",
-        log_dir: str="logs",
-        grammar_output_path: str|None = None,
+        server_dir: str = "server",
+        crash_dir: str = "crash",
+        log_dir: str = "logs",
+        grammar_output_path: str | None = None,
     ):
         self.browser = browser
         self.grammar: Grammar = Grammar()
@@ -39,7 +78,14 @@ class Fuzzer:
 
         self.input_id: int = 0
 
-    def fuzz(self, browser: str, remote: bool, browser_path: str, collect_coverage:bool, num_iterations:int|None):
+    def fuzz(
+        self,
+        browser: str,
+        remote: bool,
+        browser_path: str,
+        collect_coverage: bool,
+        num_iterations: int | None,
+    ) -> None:
 
         self.generator.create_output_dirs()
         self.generator.generate_seed_pages()
@@ -49,7 +95,7 @@ class Fuzzer:
             self.generator.generate_input(self.input_id)
             return self.input_id
 
-        def prune(browser_logs:bool) -> None:
+        def prune(browser_logs: bool) -> None:
             if PRUNE:
                 self.generator.prune(self.input_id)
 
@@ -60,14 +106,30 @@ class Fuzzer:
 
         def save_crash(logs: list[dict]) -> None:
             os.makedirs(self.crash_dir, exist_ok=True)
-            shutil.copytree(self.server_dir, os.path.join(self.crash_dir, str(self.input_id)), dirs_exist_ok=True)
+            shutil.copytree(
+                self.server_dir,
+                os.path.join(self.crash_dir, str(self.input_id)),
+                dirs_exist_ok=True,
+            )
             with open(
                 os.path.join(self.crash_dir, str(self.input_id), "logs.json"), "w"
             ) as f:
                 json.dump(logs, f)
 
-            shutil.copytree(self.log_dir, os.path.join(self.crash_dir, str(self.input_id), "logs"), dirs_exist_ok=True)
+            shutil.copytree(
+                self.log_dir,
+                os.path.join(self.crash_dir, str(self.input_id), "logs"),
+                dirs_exist_ok=True,
+            )
 
-        asyncio.run(
-            executor.fuzz(browser, remote, browser_path, self.log_dir, generate, prune, save_crash, collect_coverage, num_iterations)
+        super().run(
+            browser,
+            remote,
+            browser_path,
+            self.log_dir,
+            generate,
+            prune,
+            save_crash,
+            collect_coverage,
+            num_iterations,
         )

@@ -3,11 +3,11 @@
 	url = gogs@git.ias.cs.tu-bs.de:browser-ipc-fuzzing/generator.git
 	branch = feat/ipc-fuzzer
 [submodule "fuzzers/freedom"]
-	path = fuzzers/freedom
+	path = ipcrafter/fuzzers/freedom
 	url = gogs@git.ias.cs.tu-bs.de:browser-ipc-fuzzing/FreeDom.git
 [submodule "fuzzers/sage"]
-	path = fuzzers/sage
+	path = ipcrafter/fuzzers/sage
 	url = gogs@git.ias.cs.tu-bs.de:browser-ipc-fuzzing/SaGe.git
 [submodule "fuzzers/fuzzorigin"]
-	path = fuzzers/fuzzorigin
+	path = ipcrafter/fuzzers/fuzzorigin
 	url = gogs@git.ias.cs.tu-bs.de:browser-ipc-fuzzing/fuzzorigin.git
