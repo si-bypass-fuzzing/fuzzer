@@ -15,7 +15,9 @@ cd /app/depot_tools
 git checkout $(git rev-list -n 1 --before="$COMMIT_DATE" main)
 
 cd /app/src
-gclient sync -D
+# patch DEPS remove devtools-node-modules
+git clean -ffd
+gclient sync -D --force --reset --with_branch_heads
 
 echo "install build deps"
 ./build/install-build-deps.sh

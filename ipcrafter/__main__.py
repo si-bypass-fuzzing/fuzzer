@@ -1,5 +1,5 @@
 import argparse
-from .fuzzer import IPCFuzzer
+from .fuzzer import IPCFuzzer, PyppeteerFuzzer
 
 # from profilehooks import profile
 
@@ -22,7 +22,7 @@ def main():
         "--browser",
         help="browser to fuzz",
         type=str,
-        choices=["chrome", "firefox"],
+        choices=["chrome", "firefox", "old_chrome"],
     )
     parser.add_argument(
         "-r", "--remote", help="use remote browser", action="store_true"
@@ -69,8 +69,12 @@ def main():
 
     args = parser.parse_args()
 
-    fuzzer = IPCFuzzer(args.browser, args.webidl_dir, args.mdn_dir, server_dir=args.server_dir, log_dir=args.log_dir, crash_dir=args.crash_dir, grammar_output_path=args.grammar_output)
-    fuzzer.fuzz(args.browser, args.remote, args.path, args.coverage, None)
+    if args.browser == "old_chrome":
+        fuzzer = PyppeteerFuzzer( args.webidl_dir, args.mdn_dir, server_dir=args.server_dir, log_dir=args.log_dir, crash_dir=args.crash_dir, grammar_output_path=args.grammar_output)
+        fuzzer.fuzz(args.path, None)
+    else:
+        fuzzer = IPCFuzzer(args.browser, args.webidl_dir, args.mdn_dir, server_dir=args.server_dir, log_dir=args.log_dir, crash_dir=args.crash_dir, grammar_output_path=args.grammar_output)
+        fuzzer.fuzz(args.browser, args.remote, args.path, args.coverage, None)
 
 
 if __name__ == "__main__":

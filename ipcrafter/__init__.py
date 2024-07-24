@@ -38,7 +38,7 @@ class CustomFormatter(logging.Formatter):
 
 
 custom_formatter = CustomFormatter()
-sh = logging.StreamHandler(sys.stdout)
+sh = logging.StreamHandler(sys.__stdout__)
 sh.setFormatter(custom_formatter)
 
 logging.basicConfig(
