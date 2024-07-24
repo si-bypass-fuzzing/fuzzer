@@ -45,12 +45,11 @@ RUN echo 'export LANG=C.UTF-8' >> $HOME/.bashrc
 RUN echo 'export LC_ALL=C.UTF-8' >> $HOME/.bashrc
 RUN echo 'export ASAN_OPTIONS=log_path=/app/asan.log:detect_odr_violation=1' >> $HOME/.bashrc
 
-
-
 ADD requirements.txt /tmp/requirements.txt
 RUN pip3.12 install -r /tmp/requirements.txt
-# RUN pip3.12 install --user libtmux==0.21.0 tmuxp==1.27.0
+
 RUN pip3 install --user tmuxp==1.7.0
+
 WORKDIR /app
 
 
