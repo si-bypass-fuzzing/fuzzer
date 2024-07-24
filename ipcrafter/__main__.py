@@ -22,7 +22,7 @@ def main():
         "--browser",
         help="browser to fuzz",
         type=str,
-        choices=["chrome", "firefox", "old_chrome"],
+        choices=["chrome", "firefox", "chrome-69", "chrome-99"],
     )
     parser.add_argument(
         "-r", "--remote", help="use remote browser", action="store_true"
@@ -69,7 +69,7 @@ def main():
 
     args = parser.parse_args()
 
-    if args.browser == "old_chrome":
+    if args.browser == "chrome-69":
         fuzzer = PyppeteerFuzzer( args.webidl_dir, args.mdn_dir, server_dir=args.server_dir, log_dir=args.log_dir, crash_dir=args.crash_dir, grammar_output_path=args.grammar_output)
         fuzzer.fuzz(args.path, None)
     else:

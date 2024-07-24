@@ -1,3 +1,5 @@
+"""Executor for Chrome v69"""
+
 import asyncio
 import subprocess
 import atexit
@@ -151,7 +153,7 @@ async def fuzz(
                     browser_out,
                     {'headless': HEADLESS,
                     'executablePath': browser_path,
-                    'args': ['--site-per-process', '--disable-popup-blocking', '--log-level=0', '--no-first-run', '--enable-automation'], # , '--enable-logging=stderr'
+                    'args': ['--site-per-process', '--enable-logging', '--log-level=0'], # , '--enable-logging=stderr'
                     'logLevel': 0,
                     'ignoreDefaultArgs': ['--disable-features=site-per-process'],
                     },

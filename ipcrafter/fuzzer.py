@@ -9,6 +9,7 @@ from .jabby.web_grammar.grammar import Grammar
 from .jabby.generator.generator import Generator
 from . import executor
 from . import executor_pyppeteer
+from . import executor_old_pw
 
 PRUNE: bool = True
 
@@ -36,19 +37,34 @@ class Fuzzer:
         collect_coverage: bool,
         num_iterations: int | None,
     ) -> None:
-        asyncio.run(
-            executor.fuzz(
-                browser_type,
-                remote,
-                browser_path,
-                log_dir,
-                generate_callback,
-                prune_callback,
-                crash_callback,
-                collect_coverage,
-                num_iterations,
+        if browser_type == "chrome-99":
+            asyncio.run(
+                executor_old_pw.fuzz(
+                    "chrome",
+                    remote,
+                    browser_path,
+                    log_dir,
+                    generate_callback,
+                    prune_callback,
+                    crash_callback,
+                    collect_coverage,
+                    num_iterations,
+                )
             )
-        )
+        else:
+            asyncio.run(
+                executor.fuzz(
+                    browser_type,
+                    remote,
+                    browser_path,
+                    log_dir,
+                    generate_callback,
+                    prune_callback,
+                    crash_callback,
+                    collect_coverage,
+                    num_iterations,
+                )
+            )
 
 
 class IPCFuzzer(Fuzzer):
@@ -70,7 +86,7 @@ class IPCFuzzer(Fuzzer):
         if grammar_output_path is not None:
             logging.info("Write grammar to %s", grammar_output_path)
             self.grammar.write(grammar_output_path)
-        self.generator: Generator = Generator(browser, self.grammar, server_dir)
+        self.generator: Generator = Generator("chrome" if browser == "chrome-99" else browser, self.grammar, server_dir)
         self.server_dir: str = server_dir
         self.crash_dir: str = crash_dir
         self.log_dir: str = log_dir

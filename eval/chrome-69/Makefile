@@ -18,6 +18,7 @@ docker-run:
 	docker run -it --rm -u user --cap-add=SYS_ADMIN \
 		-v $(PWD)/app:/app \
 		-v $(PWD)/../..:/fuzzer \
+		-v ~/.gitconfig:/home/user/.gitconfig:ro \
 		-v "$$SSH_AUTH_SOCK:$$SSH_AUTH_SOCK" -e SSH_AUTH_SOCK=$$SSH_AUTH_SOCK \
 		builder-69 /bin/bash
 

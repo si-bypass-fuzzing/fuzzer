@@ -34,5 +34,12 @@
             "module": "ipcrafter",
             "args": ["-w", "./generator/webidl2json/json/chromium", "-m", "./generator/mdn", "-b", "chrome", "-s", "./server", "-o", "./chromium.json", "../chromium-ipc-fuzzing/src/out/Default/chrome"],
         },
+        {
+            "name": "Chromium v99 IPCFuzzer",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "ipcrafter",
+            "args": ["-w", "./generator/webidl2json/json/chrome-99", "-m", "./generator/mdn", "-b", "chrome", "-s", "./server", "-o", "./chromium.json", "../chromium-ipc-fuzzing/src/out/Default/chrome"],
+        },
     ]
 }
