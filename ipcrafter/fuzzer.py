@@ -243,5 +243,6 @@ class PyppeteerFuzzer():
                 prune_callback,
                 crash_callback,
                 num_iterations,
-            )
+            ),
+            debug=True
         )
