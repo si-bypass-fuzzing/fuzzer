@@ -23,8 +23,14 @@ from timeit import default_timer as timer
 from datetime import timedelta
 import os
 from .shm import CoverageCollector, SHM_NAME, SHM_SIZE
+import secrets
+import psutil
+import os
+import subprocess
+import requests
+import time
 
-TIMEOUT: int = 3
+TIMEOUT: int = 5
 HEADLESS: bool = True
 start: float
 
@@ -37,6 +43,87 @@ const { firefox } = require('playwright');
     console.log(server.wsEndpoint());
 })();
 """
+
+dms = None
+
+class DMSException(Exception):
+    pass
+
+class DeadMansSwitch:
+    def __init__(self, timeout):
+        self.timeout = timeout
+        self.last_signal_time = time.time()
+        self.loop = asyncio.get_event_loop()
+        self.monitor_task = None
+
+    async def start(self):
+        self.monitor_task = asyncio.ensure_future(self._monitor())
+
+    def signal(self):
+        self.last_signal_time = time.time()
+
+    async def _monitor(self):
+        while True:
+            await asyncio.sleep(1)  # check every second
+            if time.time() - self.last_signal_time > self.timeout:
+                await self._handle_timeout()
+
+    async def _handle_timeout(self):
+        # kill_chrome_processes()
+        logging.error("DMS")
+        raise DMSException("Dead man's switch triggered: loop has not sent a signal for the specified timeout period.")
+
+class BrowserProcess:
+    def __init__(self, path:str, headless:bool, log_dir, pipe):
+
+        log_file = os.path.join(log_dir, "chromium.log")
+
+        self.cmd = [ f"{path}","--disable-popup-blocking","--no-first-run",
+        "--enable-logging=stderr", "--v=1","--log-level=0","--site-per-process",
+        "--password-store=basic","--use-mock-keychain","--no-service-autorun","--export-tagged-pdf","--hide-scrollbars","--mute-audio",
+        "--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4",
+        "--disable-prompt-on-repost","--disable-sync","--force-color-profile=srgb","--metrics-recording-only","--disable-breakpad","--disable-client-side-phishing-detection",
+        "--disable-component-extensions-with-background-pages","--disable-default-apps","--disable-extensions",
+        "--disable-features=ImprovedCookieControls,LazyFrameLoading,GlobalMediaControls,DestroyProfileOnBrowserClose,MediaRouter,AcceptCHFrame,AutoExpandDetailsElement",
+        "--allow-pre-commit-input","--disable-hang-monitor","--disable-background-timer-throttling","--disable-backgrounding-occluded-windows",
+        "--enable-automation","--no-startup-window"
+        f"--user-data-dir=/tmp/chromium-{secrets.token_hex(6)}","--remote-debugging-port=9222", "--disable-gpu", "--auto-open-devtools-for-tabs "]
+        if headless:
+            self.cmd += ['--headless']
+        # self.cmd += [f">{log_file}", "2>&1"]
+
+        options = dict()
+        # options['env'] = self.env
+
+        logging.info(" ".join(self.cmd))
+
+        self.proc = subprocess.Popen(  # type: ignore
+            self.cmd, stdout=pipe, stderr=pipe, **options, )
+
+        time.sleep(1)
+
+    def cdp_endpoint(self):
+        # resp = requests.get("http://127.0.0.1:9222")
+        # data = resp.json()
+        # return data["webSocketDebuggerUrl"]
+        return "http://127.0.0.1:9222"
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.proc.kill()
+        # kill_chrome_processes()
+
+def kill_chrome_processes():
+    logging.error("kill_chrome_processes")
+    os.system("pkill -9 chrome")
+    # pkill -9 xvfb-run; pkill -9 Xvfb; 
+
+    current_process = psutil.Process()
+    children = current_process.children(recursive=True)
+    logging.error(f"Waiting for {len(children)} children")
+    psutil.wait_procs(children, timeout=3)
 
 
 class Ctr:
@@ -77,11 +164,6 @@ class ResetCtr(Ctr):
     def check(self) -> bool:
         return True
     
-def kill_chrome_processes():
-    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; killall -s 9 chrome; find /tmp -type f -name 'playwright*' -delete 2>/dev/null")
-
-def kill_firefox_processes():
-    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; find /tmp -type f -name 'playwright*' -delete 2>/dev/null")
     
 class BrowserContextWrapper():
     def __init__(self, context: BrowserContext, browser_type: str):
@@ -96,10 +178,7 @@ class BrowserContextWrapper():
             await asyncio.wait_for(self.context.close(), timeout=TIMEOUT * 0.25)
         except asyncio.TimeoutError as e:
             logging.error("BrowserContextWrapper exit timeout")
-            if self.browser_type == "chrome":
-                kill_chrome_processes()
-            elif self.browser_type == "firefox":
-                kill_firefox_processes()
+            kill_chrome_processes()
             try:
                 await asyncio.wait_for(self.context.close(), timeout=TIMEOUT * 0.25)
             except asyncio.TimeoutError:
@@ -119,10 +198,7 @@ class PlaywrightContextWrapper():
             await asyncio.wait_for(self.context.__aexit__(self, type, value, traceback), timeout=TIMEOUT * 0.25)
         except asyncio.TimeoutError as e:
             logging.error("PlaywrightContextWrapper exit timeout")
-            if self.browser_type == "chrome":
-                kill_chrome_processes()
-            elif self.browser_type == "firefox":
-                kill_firefox_processes()
+            kill_chrome_processes()
             try:
                 await asyncio.wait_for(self.context.__aexit__(self, type, value, traceback), timeout=TIMEOUT * 0.25)
             except asyncio.TimeoutError:
@@ -146,17 +222,16 @@ async def fuzz(
         f"log_path={os.path.join(log_dir, f'asan.log')}:detect_odr_violation=1:abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1"
     )
 
+    collect_coverage = False
     if collect_coverage:
         os.environ["SHM_ID"] = SHM_NAME
-    if browser_type == "firefox":
-        os.environ["MOZ_LOG"] = "uxss_logger:5"
-        os.environ["MOZ_LOG_FILE"] = os.path.join(log_dir, "firefox.log")
-        # os.environ["MOZ_IPC_MESSAGE_LOG"] = "1"
-    elif browser_type == "chrome":
-        os.environ["CHROME_LOG_FILE"] = os.path.join(log_dir, "chrome.log")
 
     global start
     start = timer()
+
+    global dms
+    dms = DeadMansSwitch(180)
+    dms.start()
 
     ctr: Ctr
 
@@ -169,53 +244,31 @@ async def fuzz(
     cov: CoverageCollector|None = CoverageCollector() if collect_coverage else None
     while ctr.check():
         try:
-            try:
-                async with PlaywrightContextWrapper(async_playwright(), browser_type) as p:
-                    if remote:
-                        if browser_type == "chrome":
-                            fut = p.chromium.connect_over_cdp(browser_path)
-                        else:  # browser == "firefox"
-                            fut = p.firefox.connect(browser_path)
-                    else:
-                        if browser_type == "chrome":
-                            fut = p.chromium.launch(
-                                executable_path=browser_path,
-                                headless=HEADLESS,
-                                chromium_sandbox=True,
-                                args=[
-                                    "--enable-logging",
-                                    "--log-level=0",
-                                    "--site-per-process",
-                                ],
-                                ignore_default_args=['--disable-background-networking', '--disable-ipc-flooding-protection', '--disable-dev-shm-usage', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-renderer-backgrounding']
-                            )
-                        else:  # browser == "firefox"
-                            fut = p.firefox.launch(
-                                executable_path=browser_path,
-                                headless=HEADLESS,
-                            )
-
-                    async with await fut as browser:
-                        await exec_loop(
-                            browser,
-                            browser_type,
-                            log_dir,
-                            generate_callback,
-                            prune_callback,
-                            crash_callback,
-                            ctr,
-                            cov
-                        )
-            except PlaywrightError as e:
-                logging.error(e)
+            with open(os.path.join(log_dir, f"browser-{ctr.i}.log"), "w") as browser_out:
+                with BrowserProcess(browser_path,HEADLESS,log_dir, browser_out) as browser_process:
+                    try:
+                        async with PlaywrightContextWrapper(async_playwright(), browser_type) as p:
+                            fut = p.chromium.connect_over_cdp(browser_process.cdp_endpoint())
+                            async with await fut as browser:
+                                await exec_loop(
+                                    browser,
+                                    browser_type,
+                                    log_dir,
+                                    generate_callback,
+                                    prune_callback,
+                                    crash_callback,
+                                    ctr,
+                                    cov
+                                )
+                    except PlaywrightError as e:
+                        logging.exception(e)
         except Exception as e:
             # generic catch for playwright runtime errors
-            logging.error(e)
+            print(e)
+            logging.exception(e)
         prune_callback(True)
-        if browser_type == "chrome":
-            kill_chrome_processes()
-        elif browser_type == "firefox":
-            kill_firefox_processes()
+        kill_chrome_processes()
+
 
 
 async def visit_seeds(context: BrowserContext) -> None:
@@ -254,7 +307,7 @@ async def exec_loop(
             if coverage is not None:
                 coverage.write_coverage(input_id)
 
-            if len(logs) == 0:
+            if len(logs) == 0 and len(os.listdir(log_dir)) == 0:
                 raise PlaywrightError("Empty logs, context probably hangs")
             logging.debug(logs)
             if check_logs(browser_type, logs, log_dir):
@@ -262,6 +315,8 @@ async def exec_loop(
                 raise PlaywrightError("UXSS detected")
 
             prune_callback(False)
+
+            dms.signal()
 
             current: float = timer()
             logging.info(f"Iteration: {ctr.value()}")
@@ -359,9 +414,7 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
             if general_false_positive_filter(log["text"]):
                 continue
 
-            if browser_type == "firefox" and firefox_false_positive_filter(log["text"]):
-                continue
-            elif browser_type == "chrome" and chrome_false_positive_filter(log["text"]):
+            if chrome_false_positive_filter(log["text"]):
                 continue
 
             logging.info(log["text"])
@@ -383,9 +436,7 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
         with open(os.path.join(log_dir, filename), "r") as f:
             for line in f.readlines():
                 if "[UXSS]" in line:
-                    if browser_type == "firefox" and firefox_false_positive_filter(line):
-                        continue
-                    elif browser_type == "chrome" and chrome_false_positive_filter(line):
+                    if chrome_false_positive_filter(line):
                         continue
 
                     logging.info(line)
@@ -406,18 +457,6 @@ def chrome_false_positive_filter(log: str) -> bool:
         return True
     return False
 
-def firefox_false_positive_filter(log: str) -> bool:
-    if "D/uxss_logger" in log:
-        idx:int = log.find(MAGIC)
-        if idx < 1:
-            return True
-        if log[idx - 1] in ["#", "?", "/"]:
-            # filter out known leak of visited URLs to all renderers
-            return True
-        if log[idx-1] in ["'", '"', "`"]:
-            # filter out leaks of victim pages due to missing CORB
-            return True            
-    return False
 
 def write_cause(cause:str, log_dir:str):
     with open(os.path.join(log_dir, "cause.txt"), "w") as f:

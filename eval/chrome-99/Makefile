@@ -15,14 +15,14 @@ docker-run-root:
 		builder-99 /bin/bash
 
 docker-run:
-	docker run -it --rm -u user --cap-add=SYS_ADMIN \
+	docker run -it --init --rm -u user --cap-add=SYS_ADMIN \
 		-v $(PWD)/app:/app \
 		-v $(PWD)/../..:/fuzzer \
 		-v "$$SSH_AUTH_SOCK:$$SSH_AUTH_SOCK" -e SSH_AUTH_SOCK=$$SSH_AUTH_SOCK \
 		builder-99 /bin/bash
 
 docker-run-vnc:
-	docker run -it --rm -u user --cap-add=SYS_ADMIN \
+	docker run -it --init --rm -u user --cap-add=SYS_ADMIN \
 		-v $(PWD)/app:/app \
 		-v $(PWD)/../..:/fuzzer \
 		-v "$$SSH_AUTH_SOCK:$$SSH_AUTH_SOCK" -e SSH_AUTH_SOCK=$$SSH_AUTH_SOCK \

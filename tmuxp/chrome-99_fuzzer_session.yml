@@ -13,5 +13,5 @@ windows:
     layout: tiled
     panes:
       - shell_command:
-          - python3.12 -m ipcrafter -w ./generator/webidl2json/json/chrome-99 -m ./generator/mdn -b chrome-99 -s ./server -t /app/src/out/Default/chrome
+          - python3.12 -m ipcrafter -w ./generator/webidl2json/json/chrome-99 -m ./generator/mdn -b chrome-99 -s ./server -o ./chrome-99.json -t /app/src/out/Default/chrome
 

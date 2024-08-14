@@ -22,6 +22,7 @@ from pyppeteer.connection import Connection
 import io
 import random
 import psutil
+import time
 
 
 TIMEOUT: int = 3
@@ -31,6 +32,35 @@ start: float
 launcher = None
 
 pyppeteer.DEBUG = True
+
+dms = None
+
+class DMSException(Exception):
+    pass
+
+class DeadMansSwitch:
+    def __init__(self, timeout):
+        self.timeout = timeout
+        self.last_signal_time = time.time()
+        self.loop = asyncio.get_event_loop()
+        self.monitor_task = None
+
+    async def start(self):
+        self.monitor_task = asyncio.ensure_future(self._monitor())
+
+    def signal(self):
+        self.last_signal_time = time.time()
+
+    async def _monitor(self):
+        while True:
+            await asyncio.sleep(1)  # check every second
+            if time.time() - self.last_signal_time > self.timeout:
+                await self._handle_timeout()
+
+    async def _handle_timeout(self):
+        # kill_chrome_processes()
+        logging.error("DMS")
+        raise DMSException("Dead man's switch triggered: loop has not sent a signal for the specified timeout period.")
 
 class PatchedLauncher(Launcher):
     async def patched_launch(self, pipe) -> Browser:  # noqa: C901
@@ -74,7 +104,9 @@ class PatchedLauncher(Launcher):
         if not self.chromeClosed:
             try:
                 await asyncio.wait_for(super().killChrome(), timeout=1)
-            except:
+            except Exception as e:
+                if isinstance(e,DMSException):
+                    raise e
                 pass
         try:
             # self.proc.kill()
@@ -84,8 +116,9 @@ class PatchedLauncher(Launcher):
             # except subprocess.TimeoutExpired:
             #     pass
             # self.proc.wait()
-        except:
-            pass
+        except Exception as e:
+            if isinstance(e,DMSException):
+                raise e
 
 async def patched_launch(pipe, options: dict|None = None, **kwargs: Any) -> Browser:
     logging.info("global patched_launch")
@@ -160,8 +193,11 @@ class PyppeteerBrowserWrapper():
                 await asyncio.wait_for(self.browser.close(), timeout=TIMEOUT * 0.25)
             except asyncio.TimeoutError:
                 raise Exception("PyppeteerBrowserWrapper exit timeout")
-        except:
-            kill_chrome_processes()
+        except Exception as e:
+            if isinstance(e,DMSException):
+                raise e
+            else:
+                kill_chrome_processes()
 
 async def fuzz(
     browser_path: str,
@@ -175,6 +211,10 @@ async def fuzz(
 
     global start
     start = timer()
+
+    global dms
+    dms = DeadMansSwitch(180)
+    await dms.start()
 
     ctr: Ctr
 
@@ -229,6 +269,8 @@ async def exec_loop(
     await asyncio.wait_for(visit_seeds(browser), timeout=TIMEOUT)
     logging.info("Visited seeds")
 
+    global dms
+
     while ctr.step():
         input_id = generate_callback()
 
@@ -247,6 +289,8 @@ async def exec_loop(
 
         prune_callback(False)
 
+        dms.signal()
+
         current: float = timer()
         logging.info(f"Iteration: {ctr.value()}")
         logging.info(f"Time elapsed: {timedelta(seconds=current-start)}")
@@ -260,7 +304,9 @@ async def cleanup(browser: Browser) -> None:
         try:
             pages = await browser.pages()
             await pages[idx].close()
-        except:
+        except Exception as e:
+            if isinstance(e,DMSException):
+                raise e
             pass
 
 async def execute(browser:Browser, attacker_url:str, victim_url:str)->list[dict]:
@@ -288,6 +334,8 @@ async def execute(browser:Browser, attacker_url:str, victim_url:str)->list[dict]
     except asyncio.TimeoutError:
         logging.warning("Testcase Timeout")
     except Exception as e:
+        if isinstance(e,DMSException):
+            raise e
         logging.exception(e)
 
     fut = cleanup(browser)
@@ -322,20 +370,28 @@ async def click_everything(page: Page) -> None:
     if page.mainFrame is not None:
         try:
             await page.mainFrame.click('.button')
-        except:
+        except Exception as e:
+            if isinstance(e,DMSException):
+                raise e
             pass
         try:
             await page.mainFrame.click('.a')
-        except:
+        except Exception as e:
+            if isinstance(e,DMSException):
+                raise e
             pass
         for frame in page.mainFrame.childFrames:
             try:
                 await frame.click('.button')
-            except:
+            except Exception as e:
+                if isinstance(e,DMSException):
+                    raise e
                 pass
             try:
                 await frame.click('.a')
-            except:
+            except Exception as e:
+                if isinstance(e,DMSException):
+                    raise e
                 pass
 
 def check_logs(logs: list[dict], buf, log_dir:str) -> bool:

@@ -63,6 +63,9 @@ RUN pip3.12 install -r /tmp/requirements.txt
 
 RUN pip3 install --user tmuxp==1.7.0
 
+# RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+# RUN /home/user/.nvm/nvm.sh install 12
+
 WORKDIR /app
 
 

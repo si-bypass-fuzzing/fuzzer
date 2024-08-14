@@ -8,7 +8,7 @@ from typing import Callable
 from .jabby.web_grammar.grammar import Grammar
 from .jabby.generator.generator import Generator
 from . import executor
-from . import executor_pyppeteer
+
 from . import executor_old_pw
 
 PRUNE: bool = True
@@ -161,6 +161,7 @@ class PyppeteerFuzzer():
         log_dir: str = "logs",
         grammar_output_path: str | None = None,
     ):
+        from . import executor_pyppeteer
         self.browser = "chrome"
         self.grammar: Grammar = Grammar()
         self.grammar.parse_dir(webidl_path)

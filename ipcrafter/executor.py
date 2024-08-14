@@ -152,6 +152,8 @@ async def fuzz(
     elif browser_type == "chrome":
         os.environ["CHROME_LOG_FILE"] = os.path.join(log_dir, "chrome.log")
 
+    os.environ["PWDEBUG"] = 1
+
     global start
     start = timer()
 
