@@ -231,7 +231,7 @@ async def fuzz(
 
     global dms
     dms = DeadMansSwitch(180)
-    dms.start()
+    await dms.start()
 
     ctr: Ctr
 
