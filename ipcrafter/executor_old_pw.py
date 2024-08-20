@@ -27,7 +27,6 @@ import secrets
 import psutil
 import os
 import subprocess
-import requests
 import time
 
 TIMEOUT: int = 5

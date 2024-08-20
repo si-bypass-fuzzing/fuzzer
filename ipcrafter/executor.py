@@ -20,11 +20,12 @@ from timeit import default_timer as timer
 from datetime import timedelta
 import os
 from .shm import CoverageCollector, SHM_NAME, SHM_SIZE
+from .util import *
+
 
 TIMEOUT: int = 3
 HEADLESS: bool = True
 start: float
-
 
 """
 const { firefox } = require('playwright');
@@ -36,46 +37,9 @@ const { firefox } = require('playwright');
 """
 
 
-class Ctr:
-    def __init__(self):
-        self.i: int = 0
-
-    def step(self) -> bool:
-        self.i += 1
-        return True
-
-    def check(self) -> bool:
-        return True
-
-    def value(self) -> int:
-        return self.i
-
-class MaxCtr(Ctr):
-    def __init__(self, max: int):
-        super().__init__()
-        self.max: int = max
-
-    def step(self) -> bool:
-        self.i += 1
-        return self.i < self.max
-
-    def check(self) -> bool:
-        return self.i < self.max
-    
-class ResetCtr(Ctr):
-    def __init__(self, interval:int = 100):
-        super().__init__()
-        self.interval:int = interval
-
-    def step(self) -> bool:
-        self.i += 1
-        return self.i % self.interval != 0
-
-    def check(self) -> bool:
-        return True
     
 def kill_chrome_processes():
-    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; killall -s 9 chrome; find /tmp -type f -name 'playwright*' -delete 2>/dev/null")
+    os.system("killall -s 9 'playwright.sh'; killall -s 9 chrome; find /tmp -type f -name 'playwright*' -delete 2>/dev/null")
 
 def kill_firefox_processes():
     os.system("killall -s 9 'playwright.sh'; killall -s 9 node; find /tmp -type f -name 'playwright*' -delete 2>/dev/null")
@@ -152,8 +116,6 @@ async def fuzz(
     elif browser_type == "chrome":
         os.environ["CHROME_LOG_FILE"] = os.path.join(log_dir, "chrome.log")
 
-    os.environ["PWDEBUG"] = 1
-
     global start
     start = timer()
 
@@ -166,6 +128,9 @@ async def fuzz(
 
     
     cov: CoverageCollector|None = CoverageCollector() if collect_coverage else None
+
+    stat_collector: JSStatCollector = JSStatCollector()
+
     while ctr.check():
         try:
             try:
@@ -203,7 +168,8 @@ async def fuzz(
                             prune_callback,
                             crash_callback,
                             ctr,
-                            cov
+                            cov,
+                            stat_collector
                         )
             except PlaywrightError as e:
                 logging.error(e)
@@ -233,30 +199,51 @@ async def exec_loop(
     crash_callback: Callable[[list[dict]], None],
     ctr: Ctr,
     coverage: CoverageCollector|None,
+    stat_collector: JSStatCollector
 ) -> None:
 
     async with BrowserContextWrapper(await browser.new_context(), browser_type) as context:
-        context.on("weberror", lambda e: logging.warning(e.error))
+        we_handler: WebErrorHandler = WebErrorHandler()
+
+        context.on("weberror", we_handler.handle)
 
         await visit_seeds(context)
         logging.info("Visited seeds")
+
+        console_handler: ConsoleHandler = ConsoleHandler()
 
         while ctr.step():
             input_id = generate_callback()
 
             logging.info(f"Input: {input_id}")
 
-            attacker_url = URLScope.to_url(1, 1, input_id)
-            victim_url = URLScope.to_url(2, 1, input_id)
-            logs = await execute(context, attacker_url, victim_url)
+            try:
+
+                attacker_url = URLScope.to_url(1, 1, input_id)
+                victim_url = URLScope.to_url(2, 1, input_id)
+                await execute(context, attacker_url, victim_url, console_handler)
+
+            except Exception as e:
+                # these should be executed even if the browser crashes
+                if coverage is not None:
+                    coverage.write_coverage(input_id)
+                logs = console_handler.get_logs()
+                if len(logs) == 0:
+                    raise PlaywrightError("Empty logs, context probably hangs")
+                logging.debug(logs)
+                if check_logs(browser_type, logs, log_dir, stat_collector):
+                    crash_callback(logs)
+                    raise PlaywrightError("UXSS detected")
+                raise e
 
             if coverage is not None:
                 coverage.write_coverage(input_id)
 
+            logs = console_handler.get_logs()
             if len(logs) == 0:
                 raise PlaywrightError("Empty logs, context probably hangs")
             logging.debug(logs)
-            if check_logs(browser_type, logs, log_dir):
+            if check_logs(browser_type, logs, log_dir, stat_collector):
                 crash_callback(logs)
                 raise PlaywrightError("UXSS detected")
 
@@ -266,7 +253,7 @@ async def exec_loop(
             logging.info(f"Iteration: {ctr.value()}")
             logging.info(f"Time elapsed: {timedelta(seconds=current-start)}")
             logging.info(f"Average time: {(current - start) / ctr.value():.2f} seconds")
-        # playwright timeout error here, probably cannot destroy context
+            logging.info(stat_collector.log())
 
 async def cleanup(context: BrowserContext) -> None:
     """Close all pages except the first two."""
@@ -276,26 +263,10 @@ async def cleanup(context: BrowserContext) -> None:
 
 
 async def execute(
-    context: BrowserContext, attacker_url: str, victim_url: str
-) -> list[dict]:
-    logs: list[dict] = []
-
-    async def on_console(msg: ConsoleMessage):
-        """Copy the message but convert the args to json values if possible."""
-        msg_copy = {
-            "location": msg.location,
-            "text": msg.text,
-            "type": msg.type,
-            "args": [],
-        }
-        for arg in msg.args:
-            try:
-                msg_copy["args"].append(await arg.json_value())
-            except:
-                pass
-        logs.append(msg_copy)
-
-    context.on("console", on_console)
+    context: BrowserContext, attacker_url: str, victim_url: str, console_handler: ConsoleHandler
+) -> None:
+    console_handler.clear()
+    context.on("console", console_handler.handle)
 
     fut = open_page(context, victim_url)
     try:
@@ -315,7 +286,6 @@ async def execute(
     except asyncio.TimeoutError:
         pass
 
-    return logs
 
 
 async def open_page(context: BrowserContext, url: str) -> None:
@@ -353,7 +323,7 @@ async def click_everything(page: Page) -> None:
         await link.click()
 
 
-def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
+def check_logs(browser_type:str, logs: list[dict], log_dir: str, stat_collector: JSStatCollector) -> bool:
     assert browser_type in ["firefox", "chrome"]
     for log in logs:
         if "[UXSS]" in log["text"]:
@@ -368,6 +338,11 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str) -> bool:
             logging.info(log["text"])
             write_cause(log["text"], log_dir)
             return True
+        if "JS_EXCEPTION" in log['text']:
+            logging.error(log['text'])
+            stat_collector.track_except("")
+        if "JS_FINALLY" in log['text']:
+            stat_collector.track_stmt()
 
     for filename in os.listdir(log_dir):
         if filename.startswith("asan.log"):

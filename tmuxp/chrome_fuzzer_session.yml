@@ -16,5 +16,5 @@ windows:
       - source .venv/bin/activate
     panes:
       - shell_command: # pane no. 1
-          - python3.12 -m ipcrafter -w ./generator/webidl2json/json/chrome -m ./generator/mdn -b chrome -s ./server -o ./chromium.json -t ./chrome-ipc-fuzzing/src/out/Coverage/chrome
+          - python3.12 -m ipcrafter -w ./generator/webidl2json/json/chrome -m ./generator/mdn -b chrome -s ./server -o ./chromium.json -t ./browsers/chrome-ipc-fuzzing/src/out/Coverage/chrome
 
