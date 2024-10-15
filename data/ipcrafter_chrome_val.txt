@@ -1,0 +1,5 @@
+chrome:
+2024-09-27 12:57:31,771 - root - INFO - Iteration: 174453 (executor.py:253)
+2024-09-27 12:57:31,771 - root - INFO - Time elapsed: 7 days, 1:40:59.997548 (executor.py:254)
+2024-09-27 12:57:31,771 - root - INFO - Average time: 3.50 seconds (executor.py:255)
+2024-09-27 12:57:31,771 - root - INFO - excepts: 7998717 stmts: 65478422 (executor.py:256)

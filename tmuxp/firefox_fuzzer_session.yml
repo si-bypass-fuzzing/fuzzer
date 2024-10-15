@@ -16,5 +16,5 @@ windows:
       - source .venv/bin/activate
     panes:
       - shell_command: # pane no. 1
-          - python3.12 -m ipcrafter -w ./generator/webidl2json/json/firefox -m ./generator/mdn -b firefox -s ./server -o ./firefox.json ./browsers/firefox-ipc-fuzzing/release-cov/dist/firefox/firefox
+          - python3.12 -m ipcrafter -w ./generator/webidl2json/json/firefox -m ./generator/mdn -b firefox -s ./server -o ./firefox.json -t ./browsers/firefox-ipc-fuzzing/release-cov/dist/firefox/firefox
 

@@ -39,11 +39,11 @@ const { firefox } = require('playwright');
 
     
 def kill_chrome_processes():
-    os.system("killall -s 9 'playwright.sh'; killall -s 9 chrome; find /tmp -type f -name 'playwright*' -delete 2>/dev/null")
+    os.system("killall -s 9 'playwright.sh'; killall -s 9 chrome; find /tmp -type d -name 'playwright*' -exec rm -r {} + 2>/dev/null")
 
 def kill_firefox_processes():
-    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; find /tmp -type f -name 'playwright*' -delete 2>/dev/null")
-    
+    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; find /tmp -type d -name 'playwright*' -exec rm -r {} + 2>/dev/null")
+
 class BrowserContextWrapper():
     def __init__(self, context: BrowserContext, browser_type: str):
         self.context = context
