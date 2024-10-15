@@ -19,7 +19,7 @@ from .jabby.generator.magic import MAGIC
 from timeit import default_timer as timer
 from datetime import timedelta
 import os
-from .shm import CoverageCollector, SHM_NAME, SHM_SIZE
+from .shm import CoverageCollector, SHM_SIZE, ShmBitmap
 from .util import *
 
 
@@ -108,7 +108,8 @@ async def fuzz(
     )
 
     if collect_coverage:
-        os.environ["SHM_ID"] = SHM_NAME
+        os.environ["COV_BROWSER_SHM_ID"] = ShmBitmap.get_shm_name("browser")
+        os.environ["COV_ALL_SHM_ID"] = ShmBitmap.get_shm_name("all")
     if browser_type == "firefox":
         os.environ["MOZ_LOG"] = "uxss_logger:5"
         os.environ["MOZ_LOG_FILE"] = os.path.join(log_dir, "firefox.log")
@@ -127,7 +128,7 @@ async def fuzz(
         ctr = ResetCtr()
 
     
-    cov: CoverageCollector|None = CoverageCollector() if collect_coverage else None
+    cov: list[CoverageCollector]| None =[ CoverageCollector("browser"), CoverageCollector("all")] if collect_coverage else None
 
     stat_collector: JSStatCollector = JSStatCollector()
 
@@ -198,7 +199,7 @@ async def exec_loop(
     prune_callback: Callable[[bool], None],
     crash_callback: Callable[[list[dict]], None],
     ctr: Ctr,
-    coverage: CoverageCollector|None,
+    coverage: list[CoverageCollector]|None,
     stat_collector: JSStatCollector
 ) -> None:
 
@@ -226,7 +227,8 @@ async def exec_loop(
             except Exception as e:
                 # these should be executed even if the browser crashes
                 if coverage is not None:
-                    coverage.write_coverage(input_id)
+                    for cov in coverage:
+                        cov.write_coverage(input_id)
                 logs = console_handler.get_logs()
                 if len(logs) == 0:
                     raise PlaywrightError("Empty logs, context probably hangs")
@@ -237,7 +239,8 @@ async def exec_loop(
                 raise e
 
             if coverage is not None:
-                coverage.write_coverage(input_id)
+                for cov in coverage:
+                    cov.write_coverage(input_id)
 
             logs = console_handler.get_logs()
             if len(logs) == 0:

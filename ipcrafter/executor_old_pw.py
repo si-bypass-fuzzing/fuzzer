@@ -22,7 +22,7 @@ from .jabby.generator.magic import MAGIC
 from timeit import default_timer as timer
 from datetime import timedelta
 import os
-from .shm import CoverageCollector, SHM_NAME, SHM_SIZE
+from .shm import CoverageCollector, SHM_SIZE, ShmBitmap
 import secrets
 import psutil
 import os
@@ -240,7 +240,7 @@ async def fuzz(
         ctr = ResetCtr()
 
     
-    cov: CoverageCollector|None = CoverageCollector() if collect_coverage else None
+    cov: CoverageCollector|None = CoverageCollector('all') if collect_coverage else None
     while ctr.check():
         try:
             with open(os.path.join(log_dir, f"browser-{ctr.i}.log"), "w") as browser_out:

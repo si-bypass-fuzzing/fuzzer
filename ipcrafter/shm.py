@@ -8,11 +8,11 @@ import csv
 from multiprocessing import shared_memory
 import logging
 
-SHM_NAME:str = "/coverage_shm"
+# SHM_NAME:str = "/coverage_shm"
 SHM_SIZE:int = 0x100000
 
 class ShmBitmap:
-    def __init__(self):
+    def __init__(self, name: str):
         # # Open the shared memory object
         # self.fd:int = os.open('/dev/shm' + SHM_NAME, os.O_CREAT | os.O_RDWR)
         # os.ftruncate(self.fd,SHM_SIZE)
@@ -24,14 +24,22 @@ class ShmBitmap:
         #         self.shm[i] = 0
 
         # Open the shared memory object
-        if os.path.exists('/dev/shm' + SHM_NAME):
-            os.remove('/dev/shm' + SHM_NAME)
-        self.shm: shared_memory.SharedMemory = shared_memory.SharedMemory(name=SHM_NAME, create=True, size=SHM_SIZE)
+        if os.path.exists(ShmBitmap.get_shm_path(name)):
+            os.remove(ShmBitmap.get_shm_path(name))
+        self.shm: shared_memory.SharedMemory = shared_memory.SharedMemory(name=ShmBitmap.get_shm_name(name), create=True, size=SHM_SIZE)
         self.shm.buf[:SHM_SIZE] = bytes(SHM_SIZE)
 
         self.num_edges:int = 0
         self.num_bytes:int = 0
         self.is_active:bool = True
+
+    @classmethod
+    def get_shm_name(cls, name:str):
+        return f"/{name}_coverage_shm"
+
+    @classmethod
+    def get_shm_path(cls, name:str):
+        return "/dev/shm" + ShmBitmap.get_shm_name(name)
 
     def __enter__(self):
         return self
@@ -75,8 +83,9 @@ class ShmBitmap:
         logging.info("Updated number of edges: %d", self.num_edges)
 
 class CoverageCollector:
-    def __init__(self):
-        self.shm_bitmap = ShmBitmap()
+    def __init__(self, name):
+        self.name = name
+        self.shm_bitmap = ShmBitmap(name)
 
         self.out_file: TextIOWrapper|None = None
         self.csv_writer = None
@@ -96,7 +105,7 @@ class CoverageCollector:
             self.out_file.close()
 
     def init_output_file(self):
-        self.out_file = open("coverage.csv", "w")
+        self.out_file = open(f"{self.name}_coverage.csv", "w")
         self.csv_writer = csv.writer(self.out_file)
 
         self.csv_writer.writerow(["total_edges", self.shm_bitmap.get_num_edges()])
@@ -114,7 +123,7 @@ class CoverageCollector:
 
 
 def main():
-    shm_bitmap = ShmBitmap()
+    shm_bitmap = ShmBitmap("all")
     while True:
         if input("Press enter to update edges, q to quit: ") == 'q':
             break
