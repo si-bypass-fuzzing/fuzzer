@@ -113,6 +113,10 @@ async def fuzz(
     if browser_type == "firefox":
         os.environ["MOZ_LOG"] = "uxss_logger:5"
         os.environ["MOZ_LOG_FILE"] = os.path.join(log_dir, "firefox.log")
+        os.environ["MOZ_DISABLE_CONTENT_SANDBOX"] = "1"
+        os.environ["MOZ_DISABLE_GMP_SANDBOX"] = "1"
+        os.environ["MOZ_DISABLE_RDD_SANDBOX"] = "1"
+        os.environ["MOZ_DISABLE_SOCKET_PROCESS_SANDBOX"] = "1"
         # os.environ["MOZ_IPC_MESSAGE_LOG"] = "1"
     elif browser_type == "chrome":
         os.environ["CHROME_LOG_FILE"] = os.path.join(log_dir, "chrome.log")
@@ -151,6 +155,12 @@ async def fuzz(
                                     "--enable-logging",
                                     "--log-level=0",
                                     "--site-per-process",
+                                    "--disable-gpu-sandbox",
+                                    "--disable-namespace-sandbox",
+                                    "--disable-setuid-sandbox",
+                                    "--disable-seccomp-filter-sandbox",
+                                    "--no-zygote-sandbox",
+                                    "--no-sandbox"
                                 ],
                                 ignore_default_args=['--disable-background-networking', '--disable-ipc-flooding-protection', '--disable-dev-shm-usage', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-renderer-backgrounding']
                             )

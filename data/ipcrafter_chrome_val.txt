@@ -1,5 +1,7 @@
-chrome:
-2024-09-27 12:57:31,771 - root - INFO - Iteration: 174453 (executor.py:253)
-2024-09-27 12:57:31,771 - root - INFO - Time elapsed: 7 days, 1:40:59.997548 (executor.py:254)
-2024-09-27 12:57:31,771 - root - INFO - Average time: 3.50 seconds (executor.py:255)
-2024-09-27 12:57:31,771 - root - INFO - excepts: 7998717 stmts: 65478422 (executor.py:256)
+2024-10-21 07:53:26,355 - root - INFO - Input: 60205 (executor.py:229)
+2024-10-21 07:53:27,301 - root - INFO - Coverage 60205: 127934 edges covered (shm.py:116)
+2024-10-21 07:53:27,515 - root - INFO - Coverage 60205: 472504 edges covered (shm.py:116)
+2024-10-21 07:53:27,625 - root - INFO - Iteration: 60813 (executor.py:266)
+2024-10-21 07:53:27,625 - root - INFO - Time elapsed: 2 days, 19:38:40.215193 (executor.py:267)
+2024-10-21 07:53:27,625 - root - INFO - Average time: 4.00 seconds (executor.py:268)
+2024-10-21 07:53:27,625 - root - INFO - excepts: 2623584 stmts: 21619077 (executor.py:269)
