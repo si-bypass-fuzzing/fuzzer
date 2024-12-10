@@ -1,5 +1,7 @@
 import argparse
 from .fuzzer import IPCFuzzer, PyppeteerFuzzer
+from .evaluator import FuzzoriginEvaluator
+from .reproducer import Reproducer
 
 # from profilehooks import profile
 
@@ -7,6 +9,7 @@ from .fuzzer import IPCFuzzer, PyppeteerFuzzer
 # @profile(stdout=False, filename='baseline.prof')
 def main():
     parser = argparse.ArgumentParser(description="Fuzz Firefox/Chromium")
+
     parser.add_argument(
         "-w", "--webidl-dir", help="path to directory with WebIDL JSON files", type=str
     )
@@ -62,19 +65,30 @@ def main():
         type=int,
         default=None,
     )
+    parser.add_argument("--reproduce", help="reproduce a crash", type=str, metavar="CRASH_DIR", default=None)
+    parser.add_argument("-t", "--coverage", help="enable coverage", action="store_true")
+    parser.add_argument("-f", "--fuzzer", help="fuzzer to use", type=str, default="ipcrafter")
     parser.add_argument(
         "path", metavar="PATH", help="path/url to the browser", type=str
     )
-    parser.add_argument("-t", "--coverage", help="enable coverage", action="store_true")
 
     args = parser.parse_args()
 
-    if args.browser == "chrome-69":
-        fuzzer = PyppeteerFuzzer( args.webidl_dir, args.mdn_dir, server_dir=args.server_dir, log_dir=args.log_dir, crash_dir=args.crash_dir, grammar_output_path=args.grammar_output)
-        fuzzer.fuzz(args.path, None)
-    else:
-        fuzzer = IPCFuzzer(args.browser, args.webidl_dir, args.mdn_dir, server_dir=args.server_dir, log_dir=args.log_dir, crash_dir=args.crash_dir, grammar_output_path=args.grammar_output)
-        fuzzer.fuzz(args.browser, args.remote, args.path, args.coverage, None)
+    match args.fuzzer:
+        case "ipcrafter":
+            if args.reproduce is not None:
+                reproducer = Reproducer(server_dir=args.server_dir, log_dir=args.log_dir, crash_dir=args.crash_dir)
+                reproducer.reproduce(args.reproduce, args.browser, args.remote, args.path)
+            else:
+                if args.browser == "chrome-69":
+                    fuzzer = PyppeteerFuzzer( args.webidl_dir, args.mdn_dir, server_dir=args.server_dir, log_dir=args.log_dir, crash_dir=args.crash_dir, grammar_output_path=args.grammar_output)
+                    fuzzer.fuzz(args.path, None)
+                else:
+                    fuzzer = IPCFuzzer(args.browser, args.webidl_dir, args.mdn_dir, server_dir=args.server_dir, log_dir=args.log_dir, crash_dir=args.crash_dir, grammar_output_path=args.grammar_output)
+                    fuzzer.fuzz(args.browser, args.remote, args.path, args.coverage, None)
+        case "fuzzorigin":
+            runner = FuzzoriginEvaluator(args.browser, True, args.server_dir, args.log_dir, args.crash_dir)
+            runner.fuzz(args.browser, args.remote, args.path, args.coverage, None)
 
 
 if __name__ == "__main__":

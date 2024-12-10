@@ -1,0 +1,7 @@
+2024-10-29 14:58:47,944 - root - INFO - Input: 13492 (executor.py:272)                                                 
+2024-10-29 14:58:50,262 - root - INFO - Coverage 13492: 265750 edges covered (shm.py:116)
+2024-10-29 14:58:50,360 - root - INFO - Coverage 13492: 375191 edges covered (shm.py:116)
+2024-10-29 14:58:50,410 - root - INFO - Iteration: 13628 (executor.py:309)                                             
+2024-10-29 14:58:50,410 - root - INFO - Time elapsed: 1 day, 1:41:11.466678 (executor.py:310)
+2024-10-29 14:58:50,410 - root - INFO - Average time: 6.79 seconds (executor.py:311)
+2024-10-29 14:58:50,410 - root - INFO - excepts: 0 stmts: 0 (executor.py:312)

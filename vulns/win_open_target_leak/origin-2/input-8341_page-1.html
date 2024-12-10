@@ -1,0 +1,1492 @@
+<html>
+<head><script>navigator.serviceWorker.register('/sw.js').then((reg) => {reg.update();}).catch((e) => {});</script>
+<script>try {
+	function check_site_violation(src, exec, token){
+
+let fetch_url = new URL(src);
+let exec_url = new URL(exec);
+if(fetch_url.hostname != exec_url.hostname){
+  console.log('[UXSS] [exec-' + token + '] ' + fetch_url.hostname + ' ' + exec_url.hostname);
+  return true;
+}
+  try {
+    if(IPCFuzzer.check_isolation(src)){
+      console.log('[UXSS] [process-' + token + '] ' + src);
+      return true;
+    }
+  } catch (error) {
+    console.log('Process Isolation Check: ' + error);
+  }
+
+try {
+  let cookie_site = document.cookie.split('; ').find((row) => row.startsWith('sanitize='));
+  if (cookie_site !== null){
+    cookie_site = cookie_site.split('=')[1];
+    if(fetch_url.hostname != cookie_site){
+      console.log('[UXSS] [cookie-' + token + '] ' + fetch_url.hostname + ' ' + cookie_site);
+      return true;
+    }
+  }
+  cookieStore.get('sanitize').then(c => {
+      if(fetch_url.hostname != c.value) {
+        console.log('[UXSS] [cookie-' + token + '] ' + fetch_url.hostname + ' ' + c.value);
+    }
+  }).catch(e => {});
+} catch (error) {
+  console.log('Cookie: ' + error);
+}
+try {
+  let partitioned_cookie_site = document.cookie.split('; ').find((row) => row.startsWith('sanitize_partitioned='));
+  if (partitioned_cookie_site !== null){
+    partitioned_cookie_site = partitioned_cookie_site.split('=')[1];
+    if(fetch_url.hostname != partitioned_cookie_site){
+      console.log('[UXSS] [cookie_partitioned-' + token + '] ' + fetch_url.hostname + ' ' + partitioned_cookie_site);
+      return true;
+    }
+  }
+  cookieStore.get('sanitize_partitioned')
+    .then(c => {
+      if(fetch_url.hostname != c.value) { console.log('[UXSS] [cookie_partitioned-' + token + '] ' + fetch_url.hostname + ' ' + c.value);}
+    }).catch(e => {});
+} catch (error) {
+  console.log('Cookie: ' + error);
+}
+try {
+  let storage_site = localStorage.getItem('sanitize');
+  if(storage_site != null && fetch_url.hostname != storage_site){
+      console.log('[UXSS] [localStorage-' + token + '] ' + fetch_url.hostname + ' ' + storage_site)
+      return true;
+  }
+} catch (error) {
+  console.log('localStorage: ' + error);
+}
+
+  try {
+    let openRequest = indexedDB.open('sanitize', 1);
+
+    openRequest.onsuccess = function(e) {
+      let db = e.target.result;
+      let transaction = db.transaction(['sanitize'], 'readonly');
+      let store = transaction.objectStore('sanitize');
+      let request = store.get('sanitize');
+
+      request.onsuccess = function(e) {
+        let indexeddb_site = e.target.result.value;
+        if (fetch_url.hostname != indexeddb_site) {
+          console.log('[UXSS] [indexeddb-' + token + '] ' + fetch_url.hostname + ' ' + indexeddb_site)
+        }
+        db.close();
+      };
+
+      request.onerror = function(e) {
+        console.log('Error reading data:', e.target.error);
+        db.close();
+      };
+    };
+
+    openRequest.onerror = function(e) {
+      console.log('Error opening database:', e.target.error);
+    };
+} catch (e) {}
+
+  try {
+    async function readOriginPrivateFilesystem(){
+      try {
+        const dirHandle = await navigator.storage.getDirectory();
+        const fileHandle = await dirHandle.getFileHandle('sanitize', {create: false});
+        const file = await fileHandle.getFile();
+        const opfs_site = await file.text();
+        if(opfs_site != '' && fetch_url.hostname != opfs_site) {
+          console.log('[UXSS] [opfs-' + token + '] ' + fetch_url.hostname + ' ' + opfs_site);
+        }
+      } catch (error) {
+        console.log('OPFS: ' + error);
+      }
+    }
+    readOriginPrivateFilesystem();
+  } catch (error) {
+    console.log('OPFS: ' + error);
+  }
+  try {
+    function onFsError(error) {
+      console.log('FileSystem: ' + error)
+    }
+
+    function onFileEntryRead(fe) {
+      try {
+        fe.file( (f) => {
+          f.text()
+            .then( (filesystem_site) => {
+              if(filesystem_site != '' && fetch_url.hostname != filesystem_site) {
+                console.log('[UXSS] [filesystem-' + token + '] ' + fetch_url.hostname + ' ' + filesystem_site);
+              }
+            })
+        });
+      } catch (error) {
+        console.log('FileSystem: ' + error);
+      }
+    }
+
+    function onFsRead(fs) {
+      fs.root.getFile('sanitize', {create: false}, onFileEntryRead, onFsError);
+    }
+    webkitRequestFileSystem(Window.TEMPORARY, 256, onFsRead, onFsError);
+  } catch (error) {
+    console.log('OPFS: ' + error);
+  }
+
+  try {
+    let hosts = ['127.0.0.1', '127.0.0.2'];
+    hosts.forEach(host => {
+      var x = new XMLHttpRequest();
+
+      x.onload = function () {
+          if (this.readyState == 4 && this.status == 200) {
+              let filesystem_site = x.responseText;
+              if (filesystem_site != '' && fetch_url.hostname != filesystem_site) {
+                  console.log('[UXSS] [filesystem-' + token + '] ' + fetch_url.hostname + ' ' + filesystem_site);
+              }
+          }
+      };
+
+      x.open('GET', 'filesystem:http://' + host + ':8080/temporary/sanitize', true);
+      x.send();
+    });
+  } catch (error) {
+}
+
+  let hosts = ['127.0.0.1', '127.0.0.2'];
+  hosts.forEach(host => {
+    let url = 'http://' + host + ':8080/sanitizer?nonce=' + token;
+    try {
+      fetch(url).then((response) => {
+          if (response.ok()) {
+            let text = response.text();
+            if (text.includes('127.0.0.2')) {
+              console.log('[UXSS] [fetch-' + token + '] ' + host + ' ' + text);
+            }
+          }
+      }).catch(error => {});
+    } catch (error) {}
+
+    url = 'http://' + host + ':8080/sanitizer-cookie?nonce=' + token;
+    try {
+      fetch(url, {
+        credentials: 'include',
+        mode: 'cors',
+      }).then((response) => {
+          if (response.ok()) {
+            let text = response.text();
+            if (text.includes('127.0.0.2')) {
+              console.log('[UXSS] [fetch-credentialed-' + token + '] ' + host + ' ' + text);
+            }
+          }
+      }).catch(error => {});
+    } catch (error) {}
+  });
+  return false;
+}
+} catch (e) {console.log(e)}
+try {
+	function check_iframe_site_violation(src, frame, token){
+  try {
+    let fetch_url = new URL(src);
+    let cookie_site = frame.contentWindow.document.cookie.split('; ').find((row) => row.startsWith('sanitize='))
+    if (cookie_site !== null) {
+      cookie_site = cookie_site.split('=')[1];
+      if(cookie_site != null && fetch_url.hostname != cookie_site){
+        console.log('[UXSS] [iframe-cookie-' + token + '] ' + fetch_url.hostname + ' ' + cookie_site);
+      }
+    }
+  } catch (error) {
+    console.log('Iframe Cookie: ' + error);
+  }
+}
+} catch (e) {console.log(e)}
+try {
+	function check_window_site_violation(src, win, token){
+  try {
+    let fetch_url = new URL(src);
+    let cookie_site = win.document.cookie.split('; ').find((row) => row.startsWith('sanitize='));
+    if (cookie_site !== null) {
+      cookie_site = cookie_site.split('=')[1];
+      if(cookie_site != null && fetch_url.hostname != cookie_site){
+        console.log('[UXSS] [win-cookie-' + token + '] ' + fetch_url.hostname + ' ' + cookie_site);
+      }
+    }
+  } catch (error) {
+    console.log('Window Cookie: ' + error);
+  }
+}
+} catch (e) {console.log(e)}
+</script>
+</head>
+<body>
+<h1>0f8c02c4</h1><p>foo</p>8bf18cb9455f4a8e8fa93d14ab5ebb5d
+<script>
+async function foo() {
+	try {
+		check_site_violation('http://127.0.0.2:8080', location.origin, '529cfd43');
+
+	} catch (e) {console.log(e)}
+	try {
+		var var0 = {status: Infinity, statusText: window.name, headers: '', };
+	} catch (e) {console.log(e)}
+	try {
+		var var1 = new Response(globalThis,var0);
+	} catch (e) {console.log(e)}
+	try {
+		var var2 = await var1.text();
+	} catch (e) {console.log(e)}
+	try {
+		await GPUMapMode.toString();
+	} catch (e) {console.log(e)}
+	try {
+		var var3 = new AbortController();
+	} catch (e) {console.log(e)}
+	try {
+		var var4 = await var3.abort(globalThis);
+	} catch (e) {console.log(e)}
+async function func0(args) {
+		try {
+			check_site_violation('http://127.0.0.2:8080', location.origin, '5a60190a');
+
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var0 = await window.navigation.entries();
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var1 = await window.navigation.entries();
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var2 = window.navigator.mediaDevices;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var3 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var4 = await func0_var2.on(func0_var3);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var5 = await var1.clone();
+		} catch (e) {console.log(e)}
+
+		try {
+			window.navigation.onnavigate = eval;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var6 = {state: args, };
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var7 = await window.navigation.updateCurrentEntry(func0_var6);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var9 = '<html>\n<head><script>navigator.serviceWorker.register("/sw.js").then((reg) => {reg.update();}).catch((e) => {});<\/script>\n<script>try {\n	function check_site_violation(src, exec, token){\n\nlet fetch_url = new URL(src);\nlet exec_url = new URL(exec);\nif(fetch_url.hostname != exec_url.hostname){\n  console.log("[UXSS] [exec-" + token + "] " + fetch_url.hostname + " " + exec_url.hostname);\n  return true;\n}\n  try {\n    if(IPCFuzzer.check_isolation(src)){\n      console.log("[UXSS] [process-" + token + "] " + src);\n      return true;\n    }\n  } catch (error) {\n    console.log("Process Isolation Check: " + error);\n  }\n\ntry {\n  let cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize="));\n  if (cookie_site !== null){\n    cookie_site = cookie_site.split("=")[1];\n    if(fetch_url.hostname != cookie_site){\n      console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);\n      return true;\n    }\n  }\n  cookieStore.get("sanitize").then(c => {\n      if(fetch_url.hostname != c.value) {\n        console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + c.value);\n    }\n  }).catch(e => {});\n} catch (error) {\n  console.log("Cookie: " + error);\n}\ntry {\n  let partitioned_cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize_partitioned="));\n  if (partitioned_cookie_site !== null){\n    partitioned_cookie_site = partitioned_cookie_site.split("=")[1];\n    if(fetch_url.hostname != partitioned_cookie_site){\n      console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + partitioned_cookie_site);\n      return true;\n    }\n  }\n  cookieStore.get("sanitize_partitioned")\n    .then(c => {\n      if(fetch_url.hostname != c.value) { console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + c.value);}\n    }).catch(e => {});\n} catch (error) {\n  console.log("Cookie: " + error);\n}\ntry {\n  let storage_site = localStorage.getItem("sanitize");\n  if(storage_site != null && fetch_url.hostname != storage_site){\n      console.log("[UXSS] [localStorage-" + token + "] " + fetch_url.hostname + " " + storage_site)\n      return true;\n  }\n} catch (error) {\n  console.log("localStorage: " + error);\n}\n\n  try {\n    let openRequest = indexedDB.open("sanitize", 1);\n\n    openRequest.onsuccess = function(e) {\n      let db = e.target.result;\n      let transaction = db.transaction(["sanitize"], "readonly");\n      let store = transaction.objectStore("sanitize");\n      let request = store.get("sanitize");\n\n      request.onsuccess = function(e) {\n        let indexeddb_site = e.target.result.value;\n        if (fetch_url.hostname != indexeddb_site) {\n          console.log("[UXSS] [indexeddb-" + token + "] " + fetch_url.hostname + " " + indexeddb_site)\n        }\n        db.close();\n      };\n\n      request.onerror = function(e) {\n        console.log("Error reading data:", e.target.error);\n        db.close();\n      };\n    };\n\n    openRequest.onerror = function(e) {\n      console.log("Error opening database:", e.target.error);\n    };\n} catch (e) {}\n\n  try {\n    async function readOriginPrivateFilesystem(){\n      try {\n        const dirHandle = await navigator.storage.getDirectory();\n        const fileHandle = await dirHandle.getFileHandle("sanitize", {create: false});\n        const file = await fileHandle.getFile();\n        const opfs_site = await file.text();\n        if(opfs_site != "" && fetch_url.hostname != opfs_site) {\n          console.log("[UXSS] [opfs-" + token + "] " + fetch_url.hostname + " " + opfs_site);\n        }\n      } catch (error) {\n        console.log("OPFS: " + error);\n      }\n    }\n    readOriginPrivateFilesystem();\n  } catch (error) {\n    console.log("OPFS: " + error);\n  }\n  try {\n    function onFsError(error) {\n      console.log("FileSystem: " + error)\n    }\n\n    function onFileEntryRead(fe) {\n      try {\n        fe.file( (f) => {\n          f.text()\n            .then( (filesystem_site) => {\n              if(filesystem_site != "" && fetch_url.hostname != filesystem_site) {\n                console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);\n              }\n            })\n        });\n      } catch (error) {\n        console.log("FileSystem: " + error);\n      }\n    }\n\n    function onFsRead(fs) {\n      fs.root.getFile("sanitize", {create: false}, onFileEntryRead, onFsError);\n    }\n    webkitRequestFileSystem(Window.TEMPORARY, 256, onFsRead, onFsError);\n  } catch (error) {\n    console.log("OPFS: " + error);\n  }\n\n  try {\n    let hosts = ["127.0.0.1", "127.0.0.2"];\n    hosts.forEach(host => {\n      var x = new XMLHttpRequest();\n\n      x.onload = function () {\n          if (this.readyState == 4 && this.status == 200) {\n              let filesystem_site = x.responseText;\n              if (filesystem_site != "" && fetch_url.hostname != filesystem_site) {\n                  console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);\n              }\n          }\n      };\n\n      x.open("GET", "filesystem:http://" + host + ":8080/temporary/sanitize", true);\n      x.send();\n    });\n  } catch (error) {\n}\n\n  let hosts = ["127.0.0.1", "127.0.0.2"];\n  hosts.forEach(host => {\n    let url = "http://" + host + ":8080/sanitizer?nonce=" + token;\n    try {\n      fetch(url).then((response) => {\n          if (response.ok()) {\n            let text = response.text();\n            if (text.includes("127.0.0.2")) {\n              console.log("[UXSS] [fetch-" + token + "] " + host + " " + text);\n            }\n          }\n      }).catch(error => {});\n    } catch (error) {}\n\n    url = "http://" + host + ":8080/sanitizer-cookie?nonce=" + token;\n    try {\n      fetch(url, {\n        credentials: "include",\n        mode: "cors",\n      }).then((response) => {\n          if (response.ok()) {\n            let text = response.text();\n            if (text.includes("127.0.0.2")) {\n              console.log("[UXSS] [fetch-credentialed-" + token + "] " + host + " " + text);\n            }\n          }\n      }).catch(error => {});\n    } catch (error) {}\n  });\n  return false;\n}\n} catch (e) {console.log(e)}\ntry {\n	function check_iframe_site_violation(src, frame, token){\n  try {\n    let fetch_url = new URL(src);\n    let cookie_site = frame.contentWindow.document.cookie.split("; ").find((row) => row.startsWith("sanitize="))\n    if (cookie_site !== null) {\n      cookie_site = cookie_site.split("=")[1];\n      if(cookie_site != null && fetch_url.hostname != cookie_site){\n        console.log("[UXSS] [iframe-cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);\n      }\n    }\n  } catch (error) {\n    console.log("Iframe Cookie: " + error);\n  }\n}\n} catch (e) {console.log(e)}\ntry {\n	function check_window_site_violation(src, win, token){\n  try {\n    let fetch_url = new URL(src);\n    let cookie_site = win.document.cookie.split("; ").find((row) => row.startsWith("sanitize="));\n    if (cookie_site !== null) {\n      cookie_site = cookie_site.split("=")[1];\n      if(cookie_site != null && fetch_url.hostname != cookie_site){\n        console.log("[UXSS] [win-cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);\n      }\n    }\n  } catch (error) {\n    console.log("Window Cookie: " + error);\n  }\n}\n} catch (e) {console.log(e)}\n<\/script>\n</head>\n<body>\n<h1>1646082f</h1><p>foo</p>8bf18cb9455f4a8e8fa93d14ab5ebb5d\n<script>\nasync function foo() {\n	try {\n		function check_site_violation(src, exec, token){\n\nlet fetch_url = new URL(src);\nlet exec_url = new URL(exec);\nif(fetch_url.hostname != exec_url.hostname){\n  console.log("[UXSS] [exec-" + token + "] " + fetch_url.hostname + " " + exec_url.hostname);\n  return true;\n}\n  try {\n    if(IPCFuzzer.check_isolation(src)){\n      console.log("[UXSS] [process-" + token + "] " + src);\n      return true;\n    }\n  } catch (error) {\n    console.log("Process Isolation Check: " + error);\n  }\n\ntry {\n  let cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize="));\n  if (cookie_site !== null){\n    cookie_site = cookie_site.split("=")[1];\n    if(fetch_url.hostname != cookie_site){\n      console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);\n      return true;\n    }\n  }\n  cookieStore.get("sanitize").then(c => {\n      if(fetch_url.hostname != c.value) {\n        console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + c.value);\n    }\n  }).catch(e => {});\n} catch (error) {\n  console.log("Cookie: " + error);\n}\ntry {\n  let partitioned_cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize_partitioned="));\n  if (partitioned_cookie_site !== null){\n    partitioned_cookie_site = partitioned_cookie_site.split("=")[1];\n    if(fetch_url.hostname != partitioned_cookie_site){\n      console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + partitioned_cookie_site);\n      return true;\n    }\n  }\n  cookieStore.get("sanitize_partitioned")\n    .then(c => {\n      if(fetch_url.hostname != c.value) { console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + c.value);}\n    }).catch(e => {});\n} catch (error) {\n  console.log("Cookie: " + error);\n}\ntry {\n  let storage_site = localStorage.getItem("sanitize");\n  if(storage_site != null && fetch_url.hostname != storage_site){\n      console.log("[UXSS] [localStorage-" + token + "] " + fetch_url.hostname + " " + storage_site)\n      return true;\n  }\n} catch (error) {\n  console.log("localStorage: " + error);\n}\n\n  try {\n    let openRequest = indexedDB.open("sanitize", 1);\n\n    openRequest.onsuccess = function(e) {\n      let db = e.target.result;\n      let transaction = db.transaction(["sanitize"], "readonly");\n      let store = transaction.objectStore("sanitize");\n      let request = store.get("sanitize");\n\n      request.onsuccess = function(e) {\n        let indexeddb_site = e.target.result.value;\n        if (fetch_url.hostname != indexeddb_site) {\n          console.log("[UXSS] [indexeddb-" + token + "] " + fetch_url.hostname + " " + indexeddb_site)\n        }\n        db.close();\n      };\n\n      request.onerror = function(e) {\n        console.log("Error reading data:", e.target.error);\n        db.close();\n      };\n    };\n\n    openRequest.onerror = function(e) {\n      console.log("Error opening database:", e.target.error);\n    };\n} catch (e) {}\n\n  try {\n    async function readOriginPrivateFilesystem(){\n      try {\n        const dirHandle = await navigator.storage.getDirectory();\n        const fileHandle = await dirHandle.getFileHandle("sanitize", {create: false});\n        const file = await fileHandle.getFile();\n        const opfs_site = await file.text();\n        if(opfs_site != "" && fetch_url.hostname != opfs_site) {\n          console.log("[UXSS] [opfs-" + token + "] " + fetch_url.hostname + " " + opfs_site);\n        }\n      } catch (error) {\n        console.log("OPFS: " + error);\n      }\n    }\n    readOriginPrivateFilesystem();\n  } catch (error) {\n    console.log("OPFS: " + error);\n  }\n  try {\n    function onFsError(error) {\n      console.log("FileSystem: " + error)\n    }\n\n    function onFileEntryRead(fe) {\n      try {\n        fe.file( (f) => {\n          f.text()\n            .then( (filesystem_site) => {\n              if(filesystem_site != "" && fetch_url.hostname != filesystem_site) {\n                console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);\n              }\n            })\n        });\n      } catch (error) {\n        console.log("FileSystem: " + error);\n      }\n    }\n\n    function onFsRead(fs) {\n      fs.root.getFile("sanitize", {create: false}, onFileEntryRead, onFsError);\n    }\n    webkitRequestFileSystem(Window.TEMPORARY, 256, onFsRead, onFsError);\n  } catch (error) {\n    console.log("OPFS: " + error);\n  }\n\n  try {\n    let hosts = ["127.0.0.1", "127.0.0.2"];\n    hosts.forEach(host => {\n      var x = new XMLHttpRequest();\n\n      x.onload = function () {\n          if (this.readyState == 4 && this.status == 200) {\n              let filesystem_site = x.responseText;\n              if (filesystem_site != "" && fetch_url.hostname != filesystem_site) {\n                  console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);\n              }\n          }\n      };\n\n      x.open("GET", "filesystem:http://" + host + ":8080/temporary/sanitize", true);\n      x.send();\n    });\n  } catch (error) {\n}\n\n  let hosts = ["127.0.0.1", "127.0.0.2"];\n  hosts.forEach(host => {\n    let url = "http://" + host + ":8080/sanitizer?nonce=" + token;\n    try {\n      fetch(url).then((response) => {\n          if (response.ok()) {\n            let text = response.text();\n            if (text.includes("127.0.0.2")) {\n              console.log("[UXSS] [fetch-" + token + "] " + host + " " + text);\n            }\n          }\n      }).catch(error => {});\n    } catch (error) {}\n\n    url = "http://" + host + ":8080/sanitizer-cookie?nonce=" + token;\n    try {\n      fetch(url, {\n        credentials: "include",\n        mode: "cors",\n      }).then((response) => {\n          if (response.ok()) {\n            let text = response.text();\n            if (text.includes("127.0.0.2")) {\n              console.log("[UXSS] [fetch-credentialed-" + token + "] " + host + " " + text);\n            }\n          }\n      }).catch(error => {});\n    } catch (error) {}\n  });\n  return false;\n}\n	} catch (e) {console.log(e)}\n	try {\n		check_site_violation("http://127.0.0.2:8080", location.origin, "6f28c4d4");\n\n	} catch (e) {console.log(e)}\n}\nfoo();\n<\/script>\n</body>\n</html>';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var10 = new Blob([func0_var9], {type:'text/html'});
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var11 = URL.createObjectURL(func0_var10);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var8 = func0_var11;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var13 = 'replace';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var12 = {state: args, history: func0_var13, };
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var14 = await window.navigation.navigate(func0_var8,func0_var12);
+		} catch (e) {console.log(e)}
+
+		try {
+			window.navigation.onnavigatesuccess = eval;
+		} catch (e) {console.log(e)}
+
+		try {
+			window.navigation.onnavigatesuccess = eval;
+		} catch (e) {console.log(e)}
+
+		try {
+			window.navigation.onnavigatesuccess = eval;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var15 = await var3.abort(args);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var16 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var17 = await window.navigation.on(func0_var16);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var18 = window.navigator.ink;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var19 = await func0_var18.requestPresenter();
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var20 = await window.navigation.entries();
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var21 = await func0_var10.stream();
+		} catch (e) {console.log(e)}
+
+		return '';
+	}
+	try {
+		window.navigation.onnavigateerror = func0;
+	} catch (e) {console.log(e)}
+	try {
+		var var5 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+	} catch (e) {console.log(e)}
+async function func1(event) {
+		try {
+			check_site_violation('http://127.0.0.2:8080', location.origin, 'a259cf71');
+
+		} catch (e) {console.log(e)}
+
+		try {
+			window.navigation.onnavigatesuccess = eval;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var0 = await var3.abort(event);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var1 = -41;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var2 = 9;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var3 = -16;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var4 = new OfflineAudioContext(func1_var1,func1_var2,func1_var3);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var5 = await func1_var4.resume();
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var6 = window.sharedStorage.worklet;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var7 = 'http://127.0.0.2:8080/input-8341_page-2.html#efea24d3';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var8 = await func1_var6.addModule(func1_var7);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var9 = {state: event, };
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var10 = await window.navigation.updateCurrentEntry(func1_var9);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var11 = await var1.clone();
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var12 = 'data:text/html,foo';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var13 = await func1_var6.addModule(func1_var12);
+		} catch (e) {console.log(e)}
+
+		try {
+			window.navigation.onnavigate = eval;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var14 = 'http://127.0.0.1:8080/input-8341_page-1.html#f5130a31';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var15 = {submitter: document.head, };
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var16 = new SubmitEvent(func1_var14,func1_var15);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var17 = true;
+		} catch (e) {console.log(e)}
+
+		try {
+			func1_var16.returnValue = func1_var17;
+		} catch (e) {console.log(e)}
+
+		try {
+			window.navigation.onnavigatesuccess = eval;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var18 = 'http://127.0.0.1:8080/input-8341_page-2.html#917e8f22';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var19 = {};
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var20 = new MIDIConnectionEvent(func1_var18,func1_var19);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var21 = await func1_var20.composedPath();
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var22 = 'http://127.0.0.2:8080/input-8341_page-2.html#e753660f';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var23 = {key: func1_var7, code: func1_var7, repeat: func1_var17, isComposing: func1_var17, charCode: func1_var1, keyCode: func1_var1, };
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var24 = new KeyboardEvent(func1_var22,func1_var23);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var25 = await func1_var24.preventDefault();
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var28 = 'open';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var27 = {mode: func1_var28, delegatesFocus: func1_var17, registry: window.customElements, };
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var26 = await window.frameElement.attachShadow(func1_var27);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var29 = 56;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var30 = -34;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var31 = await func1_var26.elementFromPoint(func1_var29,func1_var30);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var32 = 'http://127.0.0.1:8080/input-8341_page-2.html#e8f68656';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var33 = new FencedFrameConfig(func1_var32);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var34 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var35 = await func1_var33.setSharedStorageContext(func1_var34);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var36 = await var1.json();
+		} catch (e) {console.log(e)}
+
+		try {
+			window.navigation.oncurrententrychange = eval;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var37 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+		} catch (e) {console.log(e)}
+
+async function func1_func0(event) {
+			try {
+				check_site_violation('http://127.0.0.2:8080', location.origin, 'dccff380');
+
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var0 = {data: '', type: window.name, desiredWidth: Infinity, desiredHeight: Infinity, preferAnimation: window.closed, transfer: func1_var21, };
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var1 = new ImageDecoder(func1_func0_var0);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var2 = {frameIndex: Infinity, completeFramesOnly: window.closed, };
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var3 = await func1_func0_var1.decode(func1_func0_var2);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var4 = await window.customElements.upgrade(window.document);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var5 = await window.document.captureEvents();
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var6 = await document.head.before(window.name);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var7 = 'http://127.0.0.2:8080/input-8341_page-2.html#40717516';
+			} catch (e) {console.log(e)}
+
+async function func1_func0_func0(event) {
+				try {
+					check_site_violation('http://127.0.0.2:8080', location.origin, '839aedb5');
+
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var0 = 'data:text/html,foo';
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var1 = {relatedTarget: globalThis, };
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var2 = new FocusEvent(func1_func0_func0_var0,func1_func0_func0_var1);
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var3 = true;
+				} catch (e) {console.log(e)}
+
+				try {
+					func1_func0_func0_var2.returnValue = func1_func0_func0_var3;
+				} catch (e) {console.log(e)}
+
+				try {
+					window.navigation.onnavigatesuccess = eval;
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var5 = '<html>\n<head><script>navigator.serviceWorker.register("/sw.js").then((reg) => {reg.update();}).catch((e) => {});<\/script>\n<script>try {\n	function check_site_violation(src, exec, token){\n\nlet fetch_url = new URL(src);\nlet exec_url = new URL(exec);\nif(fetch_url.hostname != exec_url.hostname){\n  console.log("[UXSS] [exec-" + token + "] " + fetch_url.hostname + " " + exec_url.hostname);\n  return true;\n}\n  try {\n    if(IPCFuzzer.check_isolation(src)){\n      console.log("[UXSS] [process-" + token + "] " + src);\n      return true;\n    }\n  } catch (error) {\n    console.log("Process Isolation Check: " + error);\n  }\n\ntry {\n  let cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize="));\n  if (cookie_site !== null){\n    cookie_site = cookie_site.split("=")[1];\n    if(fetch_url.hostname != cookie_site){\n      console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);\n      return true;\n    }\n  }\n  cookieStore.get("sanitize").then(c => {\n      if(fetch_url.hostname != c.value) {\n        console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + c.value);\n    }\n  }).catch(e => {});\n} catch (error) {\n  console.log("Cookie: " + error);\n}\ntry {\n  let partitioned_cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize_partitioned="));\n  if (partitioned_cookie_site !== null){\n    partitioned_cookie_site = partitioned_cookie_site.split("=")[1];\n    if(fetch_url.hostname != partitioned_cookie_site){\n      console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + partitioned_cookie_site);\n      return true;\n    }\n  }\n  cookieStore.get("sanitize_partitioned")\n    .then(c => {\n      if(fetch_url.hostname != c.value) { console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + c.value);}\n    }).catch(e => {});\n} catch (error) {\n  console.log("Cookie: " + error);\n}\ntry {\n  let storage_site = localStorage.getItem("sanitize");\n  if(storage_site != null && fetch_url.hostname != storage_site){\n      console.log("[UXSS] [localStorage-" + token + "] " + fetch_url.hostname + " " + storage_site)\n      return true;\n  }\n} catch (error) {\n  console.log("localStorage: " + error);\n}\n\n  try {\n    let openRequest = indexedDB.open("sanitize", 1);\n\n    openRequest.onsuccess = function(e) {\n      let db = e.target.result;\n      let transaction = db.transaction(["sanitize"], "readonly");\n      let store = transaction.objectStore("sanitize");\n      let request = store.get("sanitize");\n\n      request.onsuccess = function(e) {\n        let indexeddb_site = e.target.result.value;\n        if (fetch_url.hostname != indexeddb_site) {\n          console.log("[UXSS] [indexeddb-" + token + "] " + fetch_url.hostname + " " + indexeddb_site)\n        }\n        db.close();\n      };\n\n      request.onerror = function(e) {\n        console.log("Error reading data:", e.target.error);\n        db.close();\n      };\n    };\n\n    openRequest.onerror = function(e) {\n      console.log("Error opening database:", e.target.error);\n    };\n} catch (e) {}\n\n  try {\n    async function readOriginPrivateFilesystem(){\n      try {\n        const dirHandle = await navigator.storage.getDirectory();\n        const fileHandle = await dirHandle.getFileHandle("sanitize", {create: false});\n        const file = await fileHandle.getFile();\n        const opfs_site = await file.text();\n        if(opfs_site != "" && fetch_url.hostname != opfs_site) {\n          console.log("[UXSS] [opfs-" + token + "] " + fetch_url.hostname + " " + opfs_site);\n        }\n      } catch (error) {\n        console.log("OPFS: " + error);\n      }\n    }\n    readOriginPrivateFilesystem();\n  } catch (error) {\n    console.log("OPFS: " + error);\n  }\n  try {\n    function onFsError(error) {\n      console.log("FileSystem: " + error)\n    }\n\n    function onFileEntryRead(fe) {\n      try {\n        fe.file( (f) => {\n          f.text()\n            .then( (filesystem_site) => {\n              if(filesystem_site != "" && fetch_url.hostname != filesystem_site) {\n                console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);\n              }\n            })\n        });\n      } catch (error) {\n        console.log("FileSystem: " + error);\n      }\n    }\n\n    function onFsRead(fs) {\n      fs.root.getFile("sanitize", {create: false}, onFileEntryRead, onFsError);\n    }\n    webkitRequestFileSystem(Window.TEMPORARY, 256, onFsRead, onFsError);\n  } catch (error) {\n    console.log("OPFS: " + error);\n  }\n\n  try {\n    let hosts = ["127.0.0.1", "127.0.0.2"];\n    hosts.forEach(host => {\n      var x = new XMLHttpRequest();\n\n      x.onload = function () {\n          if (this.readyState == 4 && this.status == 200) {\n              let filesystem_site = x.responseText;\n              if (filesystem_site != "" && fetch_url.hostname != filesystem_site) {\n                  console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);\n              }\n          }\n      };\n\n      x.open("GET", "filesystem:http://" + host + ":8080/temporary/sanitize", true);\n      x.send();\n    });\n  } catch (error) {\n}\n\n  let hosts = ["127.0.0.1", "127.0.0.2"];\n  hosts.forEach(host => {\n    let url = "http://" + host + ":8080/sanitizer?nonce=" + token;\n    try {\n      fetch(url).then((response) => {\n          if (response.ok()) {\n            let text = response.text();\n            if (text.includes("127.0.0.2")) {\n              console.log("[UXSS] [fetch-" + token + "] " + host + " " + text);\n            }\n          }\n      }).catch(error => {});\n    } catch (error) {}\n\n    url = "http://" + host + ":8080/sanitizer-cookie?nonce=" + token;\n    try {\n      fetch(url, {\n        credentials: "include",\n        mode: "cors",\n      }).then((response) => {\n          if (response.ok()) {\n            let text = response.text();\n            if (text.includes("127.0.0.2")) {\n              console.log("[UXSS] [fetch-credentialed-" + token + "] " + host + " " + text);\n            }\n          }\n      }).catch(error => {});\n    } catch (error) {}\n  });\n  return false;\n}\n} catch (e) {console.log(e)}\ntry {\n	function check_iframe_site_violation(src, frame, token){\n  try {\n    let fetch_url = new URL(src);\n    let cookie_site = frame.contentWindow.document.cookie.split("; ").find((row) => row.startsWith("sanitize="))\n    if (cookie_site !== null) {\n      cookie_site = cookie_site.split("=")[1];\n      if(cookie_site != null && fetch_url.hostname != cookie_site){\n        console.log("[UXSS] [iframe-cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);\n      }\n    }\n  } catch (error) {\n    console.log("Iframe Cookie: " + error);\n  }\n}\n} catch (e) {console.log(e)}\ntry {\n	function check_window_site_violation(src, win, token){\n  try {\n    let fetch_url = new URL(src);\n    let cookie_site = win.document.cookie.split("; ").find((row) => row.startsWith("sanitize="));\n    if (cookie_site !== null) {\n      cookie_site = cookie_site.split("=")[1];\n      if(cookie_site != null && fetch_url.hostname != cookie_site){\n        console.log("[UXSS] [win-cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);\n      }\n    }\n  } catch (error) {\n    console.log("Window Cookie: " + error);\n  }\n}\n} catch (e) {console.log(e)}\n<\/script>\n</head>\n<body>\n<h1>10642b20</h1><p>foo</p>8bf18cb9455f4a8e8fa93d14ab5ebb5d\n<script>\nasync function foo() {\n	try {\n		function check_site_violation(src, exec, token){\n\nlet fetch_url = new URL(src);\nlet exec_url = new URL(exec);\nif(fetch_url.hostname != exec_url.hostname){\n  console.log("[UXSS] [exec-" + token + "] " + fetch_url.hostname + " " + exec_url.hostname);\n  return true;\n}\n  try {\n    if(IPCFuzzer.check_isolation(src)){\n      console.log("[UXSS] [process-" + token + "] " + src);\n      return true;\n    }\n  } catch (error) {\n    console.log("Process Isolation Check: " + error);\n  }\n\ntry {\n  let cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize="));\n  if (cookie_site !== null){\n    cookie_site = cookie_site.split("=")[1];\n    if(fetch_url.hostname != cookie_site){\n      console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);\n      return true;\n    }\n  }\n  cookieStore.get("sanitize").then(c => {\n      if(fetch_url.hostname != c.value) {\n        console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + c.value);\n    }\n  }).catch(e => {});\n} catch (error) {\n  console.log("Cookie: " + error);\n}\ntry {\n  let partitioned_cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize_partitioned="));\n  if (partitioned_cookie_site !== null){\n    partitioned_cookie_site = partitioned_cookie_site.split("=")[1];\n    if(fetch_url.hostname != partitioned_cookie_site){\n      console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + partitioned_cookie_site);\n      return true;\n    }\n  }\n  cookieStore.get("sanitize_partitioned")\n    .then(c => {\n      if(fetch_url.hostname != c.value) { console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + c.value);}\n    }).catch(e => {});\n} catch (error) {\n  console.log("Cookie: " + error);\n}\ntry {\n  let storage_site = localStorage.getItem("sanitize");\n  if(storage_site != null && fetch_url.hostname != storage_site){\n      console.log("[UXSS] [localStorage-" + token + "] " + fetch_url.hostname + " " + storage_site)\n      return true;\n  }\n} catch (error) {\n  console.log("localStorage: " + error);\n}\n\n  try {\n    let openRequest = indexedDB.open("sanitize", 1);\n\n    openRequest.onsuccess = function(e) {\n      let db = e.target.result;\n      let transaction = db.transaction(["sanitize"], "readonly");\n      let store = transaction.objectStore("sanitize");\n      let request = store.get("sanitize");\n\n      request.onsuccess = function(e) {\n        let indexeddb_site = e.target.result.value;\n        if (fetch_url.hostname != indexeddb_site) {\n          console.log("[UXSS] [indexeddb-" + token + "] " + fetch_url.hostname + " " + indexeddb_site)\n        }\n        db.close();\n      };\n\n      request.onerror = function(e) {\n        console.log("Error reading data:", e.target.error);\n        db.close();\n      };\n    };\n\n    openRequest.onerror = function(e) {\n      console.log("Error opening database:", e.target.error);\n    };\n} catch (e) {}\n\n  try {\n    async function readOriginPrivateFilesystem(){\n      try {\n        const dirHandle = await navigator.storage.getDirectory();\n        const fileHandle = await dirHandle.getFileHandle("sanitize", {create: false});\n        const file = await fileHandle.getFile();\n        const opfs_site = await file.text();\n        if(opfs_site != "" && fetch_url.hostname != opfs_site) {\n          console.log("[UXSS] [opfs-" + token + "] " + fetch_url.hostname + " " + opfs_site);\n        }\n      } catch (error) {\n        console.log("OPFS: " + error);\n      }\n    }\n    readOriginPrivateFilesystem();\n  } catch (error) {\n    console.log("OPFS: " + error);\n  }\n  try {\n    function onFsError(error) {\n      console.log("FileSystem: " + error)\n    }\n\n    function onFileEntryRead(fe) {\n      try {\n        fe.file( (f) => {\n          f.text()\n            .then( (filesystem_site) => {\n              if(filesystem_site != "" && fetch_url.hostname != filesystem_site) {\n                console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);\n              }\n            })\n        });\n      } catch (error) {\n        console.log("FileSystem: " + error);\n      }\n    }\n\n    function onFsRead(fs) {\n      fs.root.getFile("sanitize", {create: false}, onFileEntryRead, onFsError);\n    }\n    webkitRequestFileSystem(Window.TEMPORARY, 256, onFsRead, onFsError);\n  } catch (error) {\n    console.log("OPFS: " + error);\n  }\n\n  try {\n    let hosts = ["127.0.0.1", "127.0.0.2"];\n    hosts.forEach(host => {\n      var x = new XMLHttpRequest();\n\n      x.onload = function () {\n          if (this.readyState == 4 && this.status == 200) {\n              let filesystem_site = x.responseText;\n              if (filesystem_site != "" && fetch_url.hostname != filesystem_site) {\n                  console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);\n              }\n          }\n      };\n\n      x.open("GET", "filesystem:http://" + host + ":8080/temporary/sanitize", true);\n      x.send();\n    });\n  } catch (error) {\n}\n\n  let hosts = ["127.0.0.1", "127.0.0.2"];\n  hosts.forEach(host => {\n    let url = "http://" + host + ":8080/sanitizer?nonce=" + token;\n    try {\n      fetch(url).then((response) => {\n          if (response.ok()) {\n            let text = response.text();\n            if (text.includes("127.0.0.2")) {\n              console.log("[UXSS] [fetch-" + token + "] " + host + " " + text);\n            }\n          }\n      }).catch(error => {});\n    } catch (error) {}\n\n    url = "http://" + host + ":8080/sanitizer-cookie?nonce=" + token;\n    try {\n      fetch(url, {\n        credentials: "include",\n        mode: "cors",\n      }).then((response) => {\n          if (response.ok()) {\n            let text = response.text();\n            if (text.includes("127.0.0.2")) {\n              console.log("[UXSS] [fetch-credentialed-" + token + "] " + host + " " + text);\n            }\n          }\n      }).catch(error => {});\n    } catch (error) {}\n  });\n  return false;\n}\n	} catch (e) {console.log(e)}\n	try {\n		check_site_violation("http://127.0.0.2:8080", location.origin, "3cee1f7e");\n\n	} catch (e) {console.log(e)}\n}\nfoo();\n<\/script>\n</body>\n</html>';
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var6 = new Blob([func1_func0_func0_var5], {type:'text/html'});
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var7 = URL.createObjectURL(func1_func0_func0_var6);
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var4 = func1_func0_func0_var7;
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var9 = 'replace';
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var8 = {state: event, history: func1_func0_func0_var9, };
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var10 = await window.navigation.navigate(func1_func0_func0_var4,func1_func0_func0_var8);
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var11 = 'http://127.0.0.2:8080/input-8341_page-1.html#0442213b';
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var12 = {};
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var13 = new MIDIMessageEvent(func1_func0_func0_var11,func1_func0_func0_var12);
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var14 = await func1_func0_func0_var13.stopImmediatePropagation();
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var15 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var16 = {info: event, };
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var17 = await window.navigation.traverseTo(func1_func0_func0_var15,func1_func0_func0_var16);
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var18 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+				} catch (e) {console.log(e)}
+
+async function func1_func0_func0_func0(event) {
+					try {
+						check_site_violation('http://127.0.0.2:8080', location.origin, '00cfd84a');
+
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var0 = 'http://127.0.0.1:8080/input-8341_page-1.html#fbbd54b2';
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var1 = false;
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var2 = true;
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var3 = await event.initEvent(func1_func0_func0_func0_var0,func1_func0_func0_func0_var1,func1_func0_func0_func0_var2);
+					} catch (e) {console.log(e)}
+
+					try {
+						window.navigation.onnavigatesuccess = eval;
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var4 = await func1_func0_func0_var13.stopImmediatePropagation();
+					} catch (e) {console.log(e)}
+
+async function func1_func0_func0_func0_func0(event) {
+						try {
+							check_site_violation('http://127.0.0.2:8080', location.origin, '3cbab05d');
+
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var0 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var1 = {fatal: window.closed, ignoreBOM: window.closed, };
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var2 = new TextDecoder(func1_func0_func0_func0_func0_var0,func1_func0_func0_func0_func0_var1);
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var3 = {stream: window.closed, };
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var4 = await func1_func0_func0_func0_func0_var2.decode('',func1_func0_func0_func0_func0_var3);
+						} catch (e) {console.log(e)}
+
+						try {
+							window.navigation.onnavigateerror = eval;
+						} catch (e) {console.log(e)}
+
+						try {
+							window.navigation.onnavigate = eval;
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var5 = await window.navigation.entries();
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var6 = window.navigator.mediaDevices;
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var7 = await func1_func0_func0_func0_func0_var6.enumerateDevices();
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var8 = {maxDetectedFaces: Infinity, fastMode: window.closed, };
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var9 = new FaceDetector(func1_func0_func0_func0_func0_var8);
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var10 = await func1_func0_func0_func0_func0_var9.detect(func1_func0_func0_var6);
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var11 = await func1_func0_func0_func0_func0_var9.detect(func1_func0_func0_var6);
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var12 = 'http://127.0.0.1:8080/input-8341_page-2.html#06c1a0e1';
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var13 = await window.navigation.navigate(func1_func0_func0_func0_func0_var12);
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var14 = 'http://127.0.0.2:8080/input-8341_page-1.html#f3e6879d';
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var15 = await window.navigation.on(func1_func0_func0_func0_func0_var14);
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var16 = window.navigator.storage;
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var17 = 'http://127.0.0.2:8080/input-8341_page-1.html#4e6b32b0';
+						} catch (e) {console.log(e)}
+
+async function func1_func0_func0_func0_func0_func0(event) {
+							try {
+								check_site_violation('http://127.0.0.2:8080', location.origin, 'bb891acb');
+
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var0 = new CSSMathInvert(Infinity);
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var1 = await func1_func0_func0_func0_func0_func0_var0.equals(Infinity);
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var2 = new Sanitizer();
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var3 = await func1_func0_func0_func0_func0_func0_var2.getConfiguration();
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var4 = await func1_func0_func0_func0_func0_var9.detect(func1_func0_func0_var6);
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var5 = await func1_func0_func0_func0_func0_var6.getSupportedConstraints();
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var6 = await func1_func0_func0_func0_func0_func0_var0.sub(Infinity);
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var7 = 'http://127.0.0.1:8080/input-8341_page-2.html#b30fa983';
+							} catch (e) {console.log(e)}
+
+async function func1_func0_func0_func0_func0_func0_func0(event) {
+								try {
+									check_site_violation('http://127.0.0.2:8080', location.origin, 'd0476a42');
+
+								} catch (e) {console.log(e)}
+
+								try {
+									window.navigation.oncurrententrychange = eval;
+								} catch (e) {console.log(e)}
+
+								try {
+									window.navigation.oncurrententrychange = eval;
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var0 = await window.navigation.forward(func1_func0_func0_var16);
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var2 = 'y';
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var1 = {source: window.frameElement, axis: func1_func0_func0_func0_func0_func0_func0_var2, };
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var3 = new ScrollTimeline(func1_func0_func0_func0_func0_func0_func0_var1);
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var4 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var5 = await func1_func0_func0_func0_func0_func0_func0_var3.getCurrentTime(func1_func0_func0_func0_func0_func0_func0_var4);
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var6 = await func1_func0_func0_func0_func0_func0_var6.equals(func1_func0_func0_func0_func0_func0_func0_var5);
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var7 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var8 = 'http://127.0.0.1:8080/input-8341_page-2.html#b8fbc90a';
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var9 = await func1_func0_func0_func0_func0_func0_var2.sanitizeFor(func1_func0_func0_func0_func0_func0_func0_var7,func1_func0_func0_func0_func0_func0_func0_var8);
+								} catch (e) {console.log(e)}
+
+								try {
+									func1_func0_func0_func0_func0_func0_func0_var9.ariaDescribedByElements = null;
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var10 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+								} catch (e) {console.log(e)}
+
+async function func1_func0_func0_func0_func0_func0_func0_func0(event) {
+									try {
+										check_site_violation('http://127.0.0.2:8080', location.origin, '5ca155ca');
+
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var0 = await window.navigation.dispatchEvent(event);
+									} catch (e) {console.log(e)}
+
+									try {
+										window.navigation.onnavigateerror = eval;
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var1 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var2 = await func1_func0_func0_func0_func0_func0_func0_var3.getCurrentTime(func1_func0_func0_func0_func0_func0_func0_func0_var1);
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var3 = await func1_func0_func0_func0_func0_func0_func0_func0_var2.div(func1_func0_func0_func0_func0_func0_func0_func0_var2);
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var4 = await window.navigation.dispatchEvent(event);
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var5 = document.createElement('td');
+									} catch (e) {console.log(e)}
+
+									try {
+										document.body.appendChild(func1_func0_func0_func0_func0_func0_func0_func0_var5);
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var6 = 'http://127.0.0.2:8080/input-8341_page-2.html#831c2380';
+									} catch (e) {console.log(e)}
+
+									try {
+										func1_func0_func0_func0_func0_func0_func0_func0_var5.ariaHidden = func1_func0_func0_func0_func0_func0_func0_func0_var6;
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var7 = await window.navigation.entries();
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var8 = await func1_func0_func0_func0_func0_func0_func0_var5.add(func1_func0_func0_func0_func0_func0_func0_func0_var2);
+									} catch (e) {console.log(e)}
+
+									try {
+										window.navigation.oncurrententrychange = eval;
+									} catch (e) {console.log(e)}
+
+									try {
+										window.navigation.onnavigateerror = eval;
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var9 = await func1_func0_func0_func0_func0_func0_func0_func0_var2.type();
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var10 = 'http://127.0.0.1:8080/input-8341_page-2.html#d020038f';
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var11 = await window.navigation.on(func1_func0_func0_func0_func0_func0_func0_func0_var10);
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var12 = await window.navigation.entries();
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var13 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var14 = await window.navigation.traverseTo(func1_func0_func0_func0_func0_func0_func0_func0_var13,func1_func0_func0_var16);
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var15 = 'http://127.0.0.1:8080/input-8341_page-2.html#5179a41c';
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var16 = await window.navigation.navigate(func1_func0_func0_func0_func0_func0_func0_func0_var15,func1_func0_func0_var8);
+									} catch (e) {console.log(e)}
+
+									try {
+										var func1_func0_func0_func0_func0_func0_func0_func0_var17 = undefined;
+									} catch (e) {console.log(e)}
+
+									return func1_func0_func0_func0_func0_func0_func0_func0_var17;
+								}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var11 = {handleEvent: func1_func0_func0_func0_func0_func0_func0_func0};
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var12 = await window.navigation.addEventListener(func1_func0_func0_func0_func0_func0_func0_var10,func1_func0_func0_func0_func0_func0_func0_var11,func1_func0_func0_func0_func0_func0_func0_var6);
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var13 = 'http://127.0.0.1:8080/input-8341_page-2.html#8e9a02bf';
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var15 = {records: func1_func0_func0_func0_func0_var5, };
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var14 = {serialNumber: func1_func0_func0_func0_func0_func0_func0_var4, message: func1_func0_func0_func0_func0_func0_func0_var15, };
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var16 = new NDEFReadingEvent(func1_func0_func0_func0_func0_func0_func0_var13,func1_func0_func0_func0_func0_func0_func0_var14);
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var17 = await func1_func0_func0_func0_func0_func0_func0_var16.composedPath();
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var19 = 'ipv4';
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var18 = {remoteAddress: func1_func0_func0_func0_func0_func0_func0_var4, remotePort: Infinity, localAddress: func1_func0_func0_func0_func0_func0_func0_var4, localPort: Infinity, dnsQueryType: func1_func0_func0_func0_func0_func0_func0_var19, ipv6Only: func1_func0_func0_func0_func0_func0_func0_var6, };
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var20 = new UDPSocket(func1_func0_func0_func0_func0_func0_func0_var18);
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var21 = await func1_func0_func0_func0_func0_func0_func0_var20.close();
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var22 = 'http://127.0.0.2:8080/input-8341_page-2.html#e0363c9e';
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var23 = await window.navigation.navigate(func1_func0_func0_func0_func0_func0_func0_var22,func1_func0_func0_var8);
+								} catch (e) {console.log(e)}
+
+								try {
+									var func1_func0_func0_func0_func0_func0_func0_var24 = undefined;
+								} catch (e) {console.log(e)}
+
+								return func1_func0_func0_func0_func0_func0_func0_var24;
+							}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var8 = {handleEvent: func1_func0_func0_func0_func0_func0_func0};
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var9 = await window.navigation.removeEventListener(func1_func0_func0_func0_func0_func0_var7,func1_func0_func0_func0_func0_func0_var8,func1_func0_func0_func0_func0_func0_var1);
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var10 = {};
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var11 = await func1_func0_func0_func0_func0_var15.subscribe('',func1_func0_func0_func0_func0_func0_var10);
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var12 = await func1_func0_var1.reset();
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var13 = window.navigation.currentEntry;
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var14 = await func1_func0_func0_func0_func0_func0_var13.getState();
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var15 = await event.stopImmediatePropagation();
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var16 = 'http://127.0.0.2:8080/input-8341_page-2.html#e7869d88';
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var17 = await window.navigation.navigate(func1_func0_func0_func0_func0_func0_var16,func1_func0_func0_var8);
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var18 = await window.navigation.updateCurrentEntry(func1_var9);
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var19 = 'http://127.0.0.2:8080/input-8341_page-1.html#2f532303';
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var20 = await func1_func0_func0_func0_func0_func0_var0.toSum(func1_func0_func0_func0_func0_func0_var19);
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var21 = await func1_func0_func0_func0_func0_var9.detect(func1_func0_func0_var6);
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var22 = await func1_func0_func0_func0_func0_var16.persist();
+							} catch (e) {console.log(e)}
+
+							try {
+								var func1_func0_func0_func0_func0_func0_var23 = undefined;
+							} catch (e) {console.log(e)}
+
+							return func1_func0_func0_func0_func0_func0_var23;
+						}
+
+						try {
+							var func1_func0_func0_func0_func0_var18 = {handleEvent: func1_func0_func0_func0_func0_func0};
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var19 = await func1_func0_func0_func0_func0_var16.removeEventListener(func1_func0_func0_func0_func0_var17,func1_func0_func0_func0_func0_var18,window.closed);
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var20 = await func1_func0_func0_func0_func0_var6.enumerateDevices();
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var21 = {formats: func1_func0_func0_func0_func0_var5, };
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var22 = new BarcodeDetector(func1_func0_func0_func0_func0_var21);
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var23 = await func1_func0_func0_func0_func0_var22.detect(func1_func0_func0_var6);
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var24 = await window.navigation.back(func1_func0_func0_var16);
+						} catch (e) {console.log(e)}
+
+						try {
+							window.navigation.oncurrententrychange = eval;
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var25 = await window.navigation.back(func1_func0_func0_var16);
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var26 = await func1_func0_func0_func0_func0_var2.decode('',func1_func0_func0_func0_func0_var3);
+						} catch (e) {console.log(e)}
+
+						try {
+							var func1_func0_func0_func0_func0_var27 = undefined;
+						} catch (e) {console.log(e)}
+
+						return func1_func0_func0_func0_func0_var27;
+					}
+
+					try {
+						globalThis.onbeforexrselect = func1_func0_func0_func0_func0;
+					} catch (e) {console.log(e)}
+
+					try {
+						window.navigation.onnavigateerror = eval;
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var5 = 'http://127.0.0.2:8080/input-8341_page-2.html#09ff2949';
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var6 = await window.navigation.navigate(func1_func0_func0_func0_var5,func1_func0_func0_var8);
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var7 = await window.navigation.back(func1_func0_func0_var16);
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var8 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var9 = await window.navigation.on(func1_func0_func0_func0_var8);
+					} catch (e) {console.log(e)}
+
+					try {
+						window.navigation.oncurrententrychange = eval;
+					} catch (e) {console.log(e)}
+
+					try {
+						window.navigation.onnavigate = eval;
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var10 = 'http://127.0.0.2:8080/input-8341_page-2.html#20bde79c';
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var11 = await window.navigation.removeEventListener(func1_func0_func0_func0_var10,null,func1_func0_func0_func0_var1);
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var12 = {numberOfChannels: Infinity, length: Infinity, sampleRate: Infinity, };
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var13 = new AudioBuffer(func1_func0_func0_func0_var12);
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var14 = 9;
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var15 = new Array(func1_func0_func0_func0_var14);
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var16 = new Float32Array(func1_func0_func0_func0_var15);
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var17 = -46;
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var18 = await func1_func0_func0_func0_var13.copyToChannel(func1_func0_func0_func0_var16,func1_func0_func0_func0_var17);
+					} catch (e) {console.log(e)}
+
+					try {
+						var func1_func0_func0_func0_var19 = undefined;
+					} catch (e) {console.log(e)}
+
+					return func1_func0_func0_func0_var19;
+				}
+
+				try {
+					var func1_func0_func0_var19 = {handleEvent: func1_func0_func0_func0};
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var20 = await window.navigation.removeEventListener(func1_func0_func0_var18,func1_func0_func0_var19,func1_func0_func0_var3);
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var21 = await window.navigation.updateCurrentEntry(func1_var9);
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var22 = 12;
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var23 = 17;
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var24 = 'text/plain';
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var25 = await func1_func0_func0_var6.slice(func1_func0_func0_var22,func1_func0_func0_var23,func1_func0_func0_var24);
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var26 = await window.navigation.updateCurrentEntry(func1_var9);
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var27 = 'http://127.0.0.2:8080/input-8341_page-1.html#d4dbcdac';
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var28 = {ignoreCase: func1_func0_func0_var3, };
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var29 = new URLPattern(func1_func0_func0_var0,func1_func0_func0_var27,func1_func0_func0_var28);
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var30 = 'http://127.0.0.1:8080/input-8341_page-1.html#19da83cb';
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var31 = await func1_func0_func0_var29.test(func1_func0_func0_var0,func1_func0_func0_var30);
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var32 = document.createElement('form');
+				} catch (e) {console.log(e)}
+
+				try {
+					document.body.appendChild(func1_func0_func0_var32);
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var33 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+				} catch (e) {console.log(e)}
+
+				try {
+					func1_func0_func0_var32.ariaSort = func1_func0_func0_var33;
+				} catch (e) {console.log(e)}
+
+				try {
+					var func1_func0_func0_var34 = undefined;
+				} catch (e) {console.log(e)}
+
+				return func1_func0_func0_var34;
+			}
+
+			try {
+				var func1_func0_var8 = {handleEvent: func1_func0_func0};
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var9 = await window.navigation.removeEventListener(func1_func0_var7,func1_func0_var8,window.closed);
+			} catch (e) {console.log(e)}
+
+			try {
+				window.navigation.onnavigatesuccess = eval;
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var10 = true;
+			} catch (e) {console.log(e)}
+
+			try {
+				func1_var20.cancelBubble = func1_func0_var10;
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var11 = {info: event, };
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var12 = await window.navigation.back(func1_func0_var11);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var13 = 'http://127.0.0.1:8080/input-8341_page-1.html#d980b387';
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var14 = await func1_var24.getModifierState(func1_func0_var13);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var15 = await window.navigation.dispatchEvent(event);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var16 = false;
+			} catch (e) {console.log(e)}
+
+			try {
+				func1_var24.returnValue = func1_func0_var16;
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var17 = true;
+			} catch (e) {console.log(e)}
+
+			try {
+				func1_var20.cancelBubble = func1_func0_var17;
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var18 = 'http://127.0.0.2:8080/input-8341_page-1.html#b2477463';
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var19 = {fatal: window.closed, };
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var20 = new TextDecoder(func1_func0_var18,func1_func0_var19);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var21 = {};
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var22 = await func1_func0_var20.decode('',func1_func0_var21);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var23 = await window.navigation.entries();
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var24 = -100;
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var25 = await func1_var31.setPointerCapture(func1_func0_var24);
+			} catch (e) {console.log(e)}
+
+			try {
+				window.navigation.oncurrententrychange = eval;
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var26 = undefined;
+			} catch (e) {console.log(e)}
+
+			return func1_func0_var26;
+		}
+
+		try {
+			var func1_var38 = {handleEvent: func1_func0};
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var39 = await window.navigation.removeEventListener(func1_var37,func1_var38,func1_var17);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var40 = undefined;
+		} catch (e) {console.log(e)}
+
+		return func1_var40;
+	}
+	try {
+		var var6 = {handleEvent: func1};
+	} catch (e) {console.log(e)}
+	try {
+		var var7 = await window.navigation.removeEventListener(var5,var6);
+	} catch (e) {console.log(e)}
+	try {
+		var var8 = await window.navigation.forward();
+	} catch (e) {console.log(e)}
+	try {
+		var var9 = new URLSearchParams(window.name);
+	} catch (e) {console.log(e)}
+	try {
+		var var10 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+	} catch (e) {console.log(e)}
+	try {
+		var var11 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+	} catch (e) {console.log(e)}
+	try {
+		var var12 = await var9.set(var10,var11);
+	} catch (e) {console.log(e)}
+	try {
+		var var13 = await var1.formData();
+	} catch (e) {console.log(e)}
+	try {
+		window.navigation.onnavigateerror = func0;
+	} catch (e) {console.log(e)}
+	try {
+		var var14 = 'http://127.0.0.1:8080/input-8341_page-1.html#f5a4ff3b';
+	} catch (e) {console.log(e)}
+	try {
+		var var16 = 'auto';
+	} catch (e) {console.log(e)}
+	try {
+		var var15 = {state: globalThis, history: var16, };
+	} catch (e) {console.log(e)}
+	try {
+		var var17 = await window.navigation.navigate(var14,var15);
+	} catch (e) {console.log(e)}
+	try {
+		var var18 = await var1.blob();
+	} catch (e) {console.log(e)}
+	try {
+		var var19 = 'data:text/plain,foo';
+	} catch (e) {console.log(e)}
+	try {
+		var var20 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+	} catch (e) {console.log(e)}
+	try {
+		var var21 = await var9.delete(var19,var20);
+	} catch (e) {console.log(e)}
+	try {
+		var var22 = '8bf18cb9455f4a8e8fa93d14ab5ebb5d';
+	} catch (e) {console.log(e)}
+	try {
+		var var23 = await window.navigation.addEventListener(var22,var6,window.closed);
+	} catch (e) {console.log(e)}
+}
+foo();
+</script>
+</body>
+</html>

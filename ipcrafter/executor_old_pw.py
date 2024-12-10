@@ -28,6 +28,7 @@ import psutil
 import os
 import subprocess
 import time
+from .util import Ctr, MaxCtr, ResetCtr, DMSException, DeadMansSwitch
 
 TIMEOUT: int = 5
 HEADLESS: bool = True
@@ -44,33 +45,6 @@ const { firefox } = require('playwright');
 """
 
 dms = None
-
-class DMSException(Exception):
-    pass
-
-class DeadMansSwitch:
-    def __init__(self, timeout):
-        self.timeout = timeout
-        self.last_signal_time = time.time()
-        self.loop = asyncio.get_event_loop()
-        self.monitor_task = None
-
-    async def start(self):
-        self.monitor_task = asyncio.ensure_future(self._monitor())
-
-    def signal(self):
-        self.last_signal_time = time.time()
-
-    async def _monitor(self):
-        while True:
-            await asyncio.sleep(1)  # check every second
-            if time.time() - self.last_signal_time > self.timeout:
-                await self._handle_timeout()
-
-    async def _handle_timeout(self):
-        # kill_chrome_processes()
-        logging.error("DMS")
-        raise DMSException("Dead man's switch triggered: loop has not sent a signal for the specified timeout period.")
 
 class BrowserProcess:
     def __init__(self, path:str, headless:bool, log_dir, pipe):
@@ -125,44 +99,6 @@ def kill_chrome_processes():
     psutil.wait_procs(children, timeout=3)
 
 
-class Ctr:
-    def __init__(self):
-        self.i: int = 0
-
-    def step(self) -> bool:
-        self.i += 1
-        return True
-
-    def check(self) -> bool:
-        return True
-
-    def value(self) -> int:
-        return self.i
-
-class MaxCtr(Ctr):
-    def __init__(self, max: int):
-        super().__init__()
-        self.max: int = max
-
-    def step(self) -> bool:
-        self.i += 1
-        return self.i < self.max
-
-    def check(self) -> bool:
-        return self.i < self.max
-    
-class ResetCtr(Ctr):
-    def __init__(self, interval:int = 100):
-        super().__init__()
-        self.interval:int = interval
-
-    def step(self) -> bool:
-        self.i += 1
-        return self.i % self.interval != 0
-
-    def check(self) -> bool:
-        return True
-    
     
 class BrowserContextWrapper():
     def __init__(self, context: BrowserContext, browser_type: str):
@@ -171,7 +107,7 @@ class BrowserContextWrapper():
 
     async def __aenter__(self) -> BrowserContext:
         return self.context
-    
+
     async def __aexit__(self, type, value, traceback):
         try:
             await asyncio.wait_for(self.context.close(), timeout=TIMEOUT * 0.25)
@@ -182,7 +118,7 @@ class BrowserContextWrapper():
                 await asyncio.wait_for(self.context.close(), timeout=TIMEOUT * 0.25)
             except asyncio.TimeoutError:
                 raise Exception("BrowserContextWrapper exit timeout")
-            
+
 
 class PlaywrightContextWrapper():
     def __init__(self, context: PlaywrightContextManager, browser_type: str):
@@ -191,7 +127,7 @@ class PlaywrightContextWrapper():
 
     async def __aenter__(self) -> Playwright:
         return await self.context.__aenter__()
-    
+
     async def __aexit__(self, type, value, traceback):
         try:
             await asyncio.wait_for(self.context.__aexit__(self, type, value, traceback), timeout=TIMEOUT * 0.25)
@@ -214,6 +150,7 @@ async def fuzz(
     crash_callback: Callable[[list[dict]], None],
     collect_coverage: bool,
     num_iterations: int | None,
+    browse_seeds: bool,
 ):
     # os.environ["PWDEBUG"] = "1"
     # os.environ["DEBUG"] = "pw:browser"
@@ -257,7 +194,8 @@ async def fuzz(
                                     prune_callback,
                                     crash_callback,
                                     ctr,
-                                    cov
+                                    cov,
+                                    browse_seeds,
                                 )
                     except PlaywrightError as e:
                         logging.exception(e)
@@ -286,13 +224,15 @@ async def exec_loop(
     crash_callback: Callable[[list[dict]], None],
     ctr: Ctr,
     coverage: CoverageCollector|None,
+    browse_seeds: bool,
 ) -> None:
 
     async with BrowserContextWrapper(await browser.new_context(), browser_type) as context:
         context.on("weberror", lambda e: logging.warning(e.error))
 
-        await visit_seeds(context)
-        logging.info("Visited seeds")
+        if browse_seeds:
+            await visit_seeds(context)
+            logging.info("Visited seeds")
 
         while ctr.step():
             input_id = generate_callback()
@@ -315,7 +255,8 @@ async def exec_loop(
 
             prune_callback(False)
 
-            dms.signal()
+            if dms is not None:
+                dms.signal()
 
             current: float = timer()
             logging.info(f"Iteration: {ctr.value()}")

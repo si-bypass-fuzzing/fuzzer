@@ -1,3 +1,7 @@
+import asyncio
+import time
+import logging
+
 class WebErrorHandler:
     THRESHOLD = 100
 
@@ -81,3 +85,31 @@ class ResetCtr(Ctr):
 
     def check(self) -> bool:
         return True
+
+class DMSException(Exception):
+    pass
+
+class DeadMansSwitch:
+    def __init__(self, timeout):
+        self.timeout = timeout
+        self.last_signal_time = time.time()
+        self.loop = asyncio.get_event_loop()
+        self.monitor_task = None
+
+    async def start(self):
+        self.monitor_task = asyncio.ensure_future(self._monitor())
+
+    def signal(self):
+        self.last_signal_time = time.time()
+
+    async def _monitor(self):
+        while True:
+            await asyncio.sleep(1)  # check every second
+            if time.time() - self.last_signal_time > self.timeout:
+                await self._handle_timeout()
+
+    async def _handle_timeout(self):
+        # kill_chrome_processes()
+        logging.error("DMS")
+        raise DMSException("Dead man's switch triggered: loop has not sent a signal for the specified timeout period.")
+

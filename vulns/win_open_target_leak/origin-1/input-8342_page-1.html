@@ -1,0 +1,726 @@
+<html>
+<head>
+<script>IPCFuzzer.deactivate_renderer_checks();
+IPCFuzzer.activate_leak_sanitizer();</script>
+<script>navigator.serviceWorker.register('/sw.js').then((reg) => {reg.update();}).catch((e) => {});</script>
+<script>try {
+	function check_site_violation(src, exec, token){
+
+let fetch_url = new URL(src);
+let exec_url = new URL(exec);
+if(fetch_url.hostname != exec_url.hostname){
+  console.log('[UXSS] [exec-' + token + '] ' + fetch_url.hostname + ' ' + exec_url.hostname);
+  return true;
+}
+  try {
+    if(IPCFuzzer.check_isolation(src)){
+      console.log('[UXSS] [process-' + token + '] ' + src);
+      return true;
+    }
+  } catch (error) {
+    console.log('Process Isolation Check: ' + error);
+  }
+
+try {
+  let cookie_site = document.cookie.split('; ').find((row) => row.startsWith('sanitize='));
+  if (cookie_site !== null){
+    cookie_site = cookie_site.split('=')[1];
+    if(fetch_url.hostname != cookie_site){
+      console.log('[UXSS] [cookie-' + token + '] ' + fetch_url.hostname + ' ' + cookie_site);
+      return true;
+    }
+  }
+  cookieStore.get('sanitize').then(c => {
+      if(fetch_url.hostname != c.value) {
+        console.log('[UXSS] [cookie-' + token + '] ' + fetch_url.hostname + ' ' + c.value);
+    }
+  }).catch(e => {});
+} catch (error) {
+  console.log('Cookie: ' + error);
+}
+try {
+  let partitioned_cookie_site = document.cookie.split('; ').find((row) => row.startsWith('sanitize_partitioned='));
+  if (partitioned_cookie_site !== null){
+    partitioned_cookie_site = partitioned_cookie_site.split('=')[1];
+    if(fetch_url.hostname != partitioned_cookie_site){
+      console.log('[UXSS] [cookie_partitioned-' + token + '] ' + fetch_url.hostname + ' ' + partitioned_cookie_site);
+      return true;
+    }
+  }
+  cookieStore.get('sanitize_partitioned')
+    .then(c => {
+      if(fetch_url.hostname != c.value) { console.log('[UXSS] [cookie_partitioned-' + token + '] ' + fetch_url.hostname + ' ' + c.value);}
+    }).catch(e => {});
+} catch (error) {
+  console.log('Cookie: ' + error);
+}
+try {
+  let storage_site = localStorage.getItem('sanitize');
+  if(storage_site != null && fetch_url.hostname != storage_site){
+      console.log('[UXSS] [localStorage-' + token + '] ' + fetch_url.hostname + ' ' + storage_site)
+      return true;
+  }
+} catch (error) {
+  console.log('localStorage: ' + error);
+}
+
+  try {
+    let openRequest = indexedDB.open('sanitize', 1);
+
+    openRequest.onsuccess = function(e) {
+      let db = e.target.result;
+      let transaction = db.transaction(['sanitize'], 'readonly');
+      let store = transaction.objectStore('sanitize');
+      let request = store.get('sanitize');
+
+      request.onsuccess = function(e) {
+        let indexeddb_site = e.target.result.value;
+        if (fetch_url.hostname != indexeddb_site) {
+          console.log('[UXSS] [indexeddb-' + token + '] ' + fetch_url.hostname + ' ' + indexeddb_site)
+        }
+        db.close();
+      };
+
+      request.onerror = function(e) {
+        console.log('Error reading data:', e.target.error);
+        db.close();
+      };
+    };
+
+    openRequest.onerror = function(e) {
+      console.log('Error opening database:', e.target.error);
+    };
+} catch (e) {}
+
+  try {
+    async function readOriginPrivateFilesystem(){
+      try {
+        const dirHandle = await navigator.storage.getDirectory();
+        const fileHandle = await dirHandle.getFileHandle('sanitize', {create: false});
+        const file = await fileHandle.getFile();
+        const opfs_site = await file.text();
+        if(opfs_site != '' && fetch_url.hostname != opfs_site) {
+          console.log('[UXSS] [opfs-' + token + '] ' + fetch_url.hostname + ' ' + opfs_site);
+        }
+      } catch (error) {
+        console.log('OPFS: ' + error);
+      }
+    }
+    readOriginPrivateFilesystem();
+  } catch (error) {
+    console.log('OPFS: ' + error);
+  }
+  try {
+    function onFsError(error) {
+      console.log('FileSystem: ' + error)
+    }
+
+    function onFileEntryRead(fe) {
+      try {
+        fe.file( (f) => {
+          f.text()
+            .then( (filesystem_site) => {
+              if(filesystem_site != '' && fetch_url.hostname != filesystem_site) {
+                console.log('[UXSS] [filesystem-' + token + '] ' + fetch_url.hostname + ' ' + filesystem_site);
+              }
+            })
+        });
+      } catch (error) {
+        console.log('FileSystem: ' + error);
+      }
+    }
+
+    function onFsRead(fs) {
+      fs.root.getFile('sanitize', {create: false}, onFileEntryRead, onFsError);
+    }
+    webkitRequestFileSystem(Window.TEMPORARY, 256, onFsRead, onFsError);
+  } catch (error) {
+    console.log('OPFS: ' + error);
+  }
+
+  try {
+    let hosts = ['127.0.0.1', '127.0.0.2'];
+    hosts.forEach(host => {
+      var x = new XMLHttpRequest();
+
+      x.onload = function () {
+          if (this.readyState == 4 && this.status == 200) {
+              let filesystem_site = x.responseText;
+              if (filesystem_site != '' && fetch_url.hostname != filesystem_site) {
+                  console.log('[UXSS] [filesystem-' + token + '] ' + fetch_url.hostname + ' ' + filesystem_site);
+              }
+          }
+      };
+
+      x.open('GET', 'filesystem:http://' + host + ':8080/temporary/sanitize', true);
+      x.send();
+    });
+  } catch (error) {
+}
+
+  let hosts = ['127.0.0.1', '127.0.0.2'];
+  hosts.forEach(host => {
+    let url = 'http://' + host + ':8080/sanitizer?nonce=' + token;
+    try {
+      fetch(url).then((response) => {
+          if (response.ok()) {
+            let text = response.text();
+            if (text.includes('127.0.0.1')) {
+              console.log('[UXSS] [fetch-' + token + '] ' + host + ' ' + text);
+            }
+          }
+      }).catch(error => {});
+    } catch (error) {}
+
+    url = 'http://' + host + ':8080/sanitizer-cookie?nonce=' + token;
+    try {
+      fetch(url, {
+        credentials: 'include',
+        mode: 'cors',
+      }).then((response) => {
+          if (response.ok()) {
+            let text = response.text();
+            if (text.includes('127.0.0.1')) {
+              console.log('[UXSS] [fetch-credentialed-' + token + '] ' + host + ' ' + text);
+            }
+          }
+      }).catch(error => {});
+    } catch (error) {}
+  });
+  return false;
+}
+} catch (e) {console.log(e)}
+try {
+	function check_iframe_site_violation(src, frame, token){
+  try {
+    let fetch_url = new URL(src);
+    let cookie_site = frame.contentWindow.document.cookie.split('; ').find((row) => row.startsWith('sanitize='))
+    if (cookie_site !== null) {
+      cookie_site = cookie_site.split('=')[1];
+      if(cookie_site != null && fetch_url.hostname != cookie_site){
+        console.log('[UXSS] [iframe-cookie-' + token + '] ' + fetch_url.hostname + ' ' + cookie_site);
+      }
+    }
+  } catch (error) {
+    console.log('Iframe Cookie: ' + error);
+  }
+}
+} catch (e) {console.log(e)}
+try {
+	function check_window_site_violation(src, win, token){
+  try {
+    let fetch_url = new URL(src);
+    let cookie_site = win.document.cookie.split('; ').find((row) => row.startsWith('sanitize='));
+    if (cookie_site !== null) {
+      cookie_site = cookie_site.split('=')[1];
+      if(cookie_site != null && fetch_url.hostname != cookie_site){
+        console.log('[UXSS] [win-cookie-' + token + '] ' + fetch_url.hostname + ' ' + cookie_site);
+      }
+    }
+  } catch (error) {
+    console.log('Window Cookie: ' + error);
+  }
+}
+} catch (e) {console.log(e)}
+</script>
+</head>
+<body>
+<h1>28ad65ce</h1><p>foo</p>
+<script>
+async function foo() {
+	try {
+		check_site_violation('http://127.0.0.1:8080', location.origin, '93d5192f');
+
+	} catch (e) {console.log(e)}
+async function func0(args) {
+		try {
+			check_site_violation('http://127.0.0.1:8080', location.origin, 'a4eceaa5');
+
+		} catch (e) {console.log(e)}
+
+		try {
+			IPCFuzzer.mutate_schemeful_site('http://127.0.0.1:8080/input-8342_page-1.html#1c329007');
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var0 = new DOMMatrix(window.name);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var1 = {m13: Infinity, m14: Infinity, m23: Infinity, m24: Infinity, m31: Infinity, m32: Infinity, m33: Infinity, m34: Infinity, m43: Infinity, m44: Infinity, is2D: window.closed, };
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var2 = await func0_var0.multiply(func0_var1);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var3 = window.navigator.mediaSession;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var4 = true;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var5 = await func0_var3.setMicrophoneActive(func0_var4);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var6 = {info: args, };
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var7 = await window.navigation.back(func0_var6);
+		} catch (e) {console.log(e)}
+
+		try {
+			window.navigation.onnavigateerror = eval;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var8 = await window.navigation.entries();
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var9 = await window.navigation.back(func0_var6);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var10 = 'previousslide';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var11 = await func0_var3.setActionHandler(func0_var10,eval);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var12 = await window.navigation.entries();
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var13 = window.navigator.printing;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var14 = await func0_var13.getPrinters();
+		} catch (e) {console.log(e)}
+
+		try {
+			IPCFuzzer.mutate_storage_key('http://127.0.0.1:8080/input-8342_page-2.html#e5c8067a');
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var15 = 'http://127.0.0.1:8080/input-8342_page-2.html#5eb3f72c';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var17 = 'auto';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var16 = {state: args, history: func0_var17, };
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var18 = await window.navigation.navigate(func0_var15,func0_var16);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var19 = window.clientInformation.cookieDeprecationLabel;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var20 = await func0_var19.getValue();
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var21 = 'foo';
+		} catch (e) {console.log(e)}
+
+async function func0_func0(event) {
+			try {
+				check_site_violation('http://127.0.0.1:8080', location.origin, '5a22e693');
+
+			} catch (e) {console.log(e)}
+
+			try {
+				IPCFuzzer.mutate_schemeful_site('http://127.0.0.2:8080/input-8342_page-2.html#ec3115c9');
+			} catch (e) {console.log(e)}
+
+			try {
+				var func0_func0_var0 = 23;
+			} catch (e) {console.log(e)}
+
+			try {
+				func0_var0.m43 = func0_func0_var0;
+			} catch (e) {console.log(e)}
+
+			try {
+				var func0_func0_var1 = document.createElement('form');
+			} catch (e) {console.log(e)}
+
+			try {
+				document.body.appendChild(func0_func0_var1);
+			} catch (e) {console.log(e)}
+
+			try {
+				func0_func0_var1.ontransitioncancel = eval;
+			} catch (e) {console.log(e)}
+
+			try {
+				var func0_func0_var2 = false;
+			} catch (e) {console.log(e)}
+
+			try {
+				var func0_func0_var3 = await func0_var3.setMicrophoneActive(func0_func0_var2);
+			} catch (e) {console.log(e)}
+
+			try {
+				IPCFuzzer.mutate_site_for_cookies_replace_host('http://127.0.0.2:8080/input-8342_page-1.html');
+			} catch (e) {console.log(e)}
+
+			try {
+				func0_func0_var1.hidden = null;
+			} catch (e) {console.log(e)}
+
+			try {
+				IPCFuzzer.mutate_site_for_cookies_replace_host('http://127.0.0.2:8080/input-8342_page-1.html');
+			} catch (e) {console.log(e)}
+
+			try {
+				window.navigation.oncurrententrychange = eval;
+			} catch (e) {console.log(e)}
+
+			try {
+				var func0_func0_var4 = await func0_var19.getValue();
+			} catch (e) {console.log(e)}
+
+			try {
+				var func0_func0_var5 = 'paused';
+			} catch (e) {console.log(e)}
+
+			try {
+				func0_var3.playbackState = func0_func0_var5;
+			} catch (e) {console.log(e)}
+
+			try {
+				var func0_func0_var6 = new Observable(eval);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func0_func0_var7 = {};
+			} catch (e) {console.log(e)}
+
+			try {
+				var func0_func0_var8 = await func0_func0_var6.subscribe('',func0_func0_var7);
+			} catch (e) {console.log(e)}
+
+			try {
+				IPCFuzzer.mutate_origin_replace_host('http://127.0.0.1:8080/input-8342_page-1.html');
+			} catch (e) {console.log(e)}
+
+			try {
+				window.navigation.oncurrententrychange = eval;
+			} catch (e) {console.log(e)}
+
+			try {
+				var func0_func0_var9 = undefined;
+			} catch (e) {console.log(e)}
+
+			return func0_func0_var9;
+		}
+
+		try {
+			var func0_var22 = {handleEvent: func0_func0};
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var23 = await window.navigation.removeEventListener(func0_var21,func0_var22);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var24 = {state: args, };
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var25 = await window.navigation.reload(func0_var24);
+		} catch (e) {console.log(e)}
+
+		return '';
+	}
+	try {
+		window.navigation.onnavigatesuccess = func0;
+	} catch (e) {console.log(e)}
+	try {
+		IPCFuzzer.mutate_schemeful_site_replace_host('http://127.0.0.1:8080/input-8342_page-1.html');
+	} catch (e) {console.log(e)}
+	try {
+		var var0 = 54;
+	} catch (e) {console.log(e)}
+	try {
+		var var1 = new Array(var0);
+	} catch (e) {console.log(e)}
+	try {
+		var var3 = 'transparent';
+	} catch (e) {console.log(e)}
+	try {
+		var var2 = {type: window.name, endings: var3, };
+	} catch (e) {console.log(e)}
+	try {
+		var var4 = new Blob(var1,var2);
+	} catch (e) {console.log(e)}
+	try {
+		var var5 = await var4.arrayBuffer();
+	} catch (e) {console.log(e)}
+	try {
+		IPCFuzzer.mutate_site_for_cookies_replace_host('http://127.0.0.2:8080/input-8342_page-1.html');
+	} catch (e) {console.log(e)}
+	try {
+		var var6 = await var4.stream();
+	} catch (e) {console.log(e)}
+	try {
+		IPCFuzzer.mutate_site_for_cookies_replace_host('http://127.0.0.2:8080/input-8342_page-2.html');
+	} catch (e) {console.log(e)}
+	try {
+		var var7 = 'http://127.0.0.1:8080/input-8342_page-1.html#5707882d';
+	} catch (e) {console.log(e)}
+async function func1(event) {
+		try {
+			check_site_violation('http://127.0.0.1:8080', location.origin, '13e677f7');
+
+		} catch (e) {console.log(e)}
+
+		try {
+			IPCFuzzer.mutate_url_replace_host('http://127.0.0.1:8080/input-8342_page-1.html');
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var0 = {info: event, };
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var1 = await window.navigation.back(func1_var0);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var2 = 'http://127.0.0.1:8080/input-8342_page-2.html#f53e6444';
+		} catch (e) {console.log(e)}
+
+async function func1_func0(event) {
+			try {
+				check_site_violation('http://127.0.0.1:8080', location.origin, '7bc98efa');
+
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var0 = {state: event, };
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var1 = await window.navigation.updateCurrentEntry(func1_func0_var0);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var2 = window.document.rootElement;
+			} catch (e) {console.log(e)}
+
+			try {
+				func1_func0_var2.ondragstart = eval;
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var3 = new MutationObserver(eval);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var4 = await func1_func0_var3.takeRecords();
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var5 = 'foo';
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var7 = 'wentaway';
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var6 = {reason: func1_func0_var7, message: func1_func0_var5, };
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var8 = new PresentationConnectionCloseEvent(func1_func0_var5,func1_func0_var6);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var9 = await func1_func0_var8.stopImmediatePropagation();
+			} catch (e) {console.log(e)}
+
+			try {
+				IPCFuzzer.mutate_site_for_cookies('http://127.0.0.1:8080/input-8342_page-1.html#37082366');
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var10 = await window.navigation.updateCurrentEntry(func1_func0_var0);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var11 = 'http://127.0.0.2:8080/input-8342_page-2.html#a68d07dc';
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var12 = await window.navigation.on(func1_func0_var11);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var13 = {state: event, };
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var14 = await window.navigation.reload(func1_func0_var13);
+			} catch (e) {console.log(e)}
+
+			try {
+				IPCFuzzer.mutate_origin('http://127.0.0.2:8080/input-8342_page-1.html#2dade9be');
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var15 = {frequency: Infinity, };
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var16 = new AmbientLightSensor(func1_func0_var15);
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var17 = await func1_func0_var16.stop();
+			} catch (e) {console.log(e)}
+
+			try {
+				func1_func0_var2.oncontextrestored = eval;
+			} catch (e) {console.log(e)}
+
+			try {
+				window.navigation.onnavigateerror = eval;
+			} catch (e) {console.log(e)}
+
+			try {
+				IPCFuzzer.mutate_url('http://127.0.0.1:8080/input-8342_page-1.html#fb97d74a');
+			} catch (e) {console.log(e)}
+
+			try {
+				IPCFuzzer.mutate_origin('about:blank');
+			} catch (e) {console.log(e)}
+
+			try {
+				var func1_func0_var18 = undefined;
+			} catch (e) {console.log(e)}
+
+			return func1_func0_var18;
+		}
+
+		try {
+			var func1_var3 = {handleEvent: func1_func0};
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var4 = await window.navigation.removeEventListener(func1_var2,func1_var3,window.closed);
+		} catch (e) {console.log(e)}
+
+		try {
+			IPCFuzzer.mutate_storage_key('http://127.0.0.2:8080/input-8342_page-1.html#fe144872');
+		} catch (e) {console.log(e)}
+
+		try {
+			IPCFuzzer.mutate_site_for_cookies_replace_host('http://127.0.0.2:8080/input-8342_page-2.html');
+		} catch (e) {console.log(e)}
+
+		try {
+			IPCFuzzer.mutate_schemeful_site('http://127.0.0.2:8080/input-8342_page-2.html#94388a04');
+		} catch (e) {console.log(e)}
+
+		try {
+			window.navigation.onnavigateerror = eval;
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var5 = {state: event, };
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var6 = await window.navigation.reload(func1_var5);
+		} catch (e) {console.log(e)}
+
+		try {
+			window.navigation.onnavigateerror = eval;
+		} catch (e) {console.log(e)}
+
+		try {
+			IPCFuzzer.mutate_storage_key('data:text/html,%3Chtml%3E%5Cn%3Chead%3E%5Cn%3Cscript%3EIPCFuzzer.deactivate_renderer_checks%28%29%3B%5CnIPCFuzzer.activate_leak_sanitizer%28%29%3B%3C%5C/script%3E%5Cn%3Cscript%3Enavigator.serviceWorker.register%28%22/sw.js%22%29.then%28%28reg%29%20%3D%3E%20%7Breg.update%28%29%3B%7D%29.catch%28%28e%29%20%3D%3E%20%7B%7D%29%3B%3C%5C/script%3E%5Cn%3Cscript%3Etry%20%7B%5Cn%09function%20check_site_violation%28src%2C%20exec%2C%20token%29%7B%5Cn%5Cnlet%20fetch_url%20%3D%20new%20URL%28src%29%3B%5Cnlet%20exec_url%20%3D%20new%20URL%28exec%29%3B%5Cnif%28fetch_url.hostname%20%21%3D%20exec_url.hostname%29%7B%5Cn%20%20console.log%28%22%5BUXSS%5D%20%5Bexec-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20exec_url.hostname%29%3B%5Cn%20%20return%20true%3B%5Cn%7D%5Cn%20%20try%20%7B%5Cn%20%20%20%20if%28IPCFuzzer.check_isolation%28src%29%29%7B%5Cn%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bprocess-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20src%29%3B%5Cn%20%20%20%20%20%20return%20true%3B%5Cn%20%20%20%20%7D%5Cn%20%20%7D%20catch%20%28error%29%20%7B%5Cn%20%20%20%20console.log%28%22Process%20Isolation%20Check%3A%20%22%20%2B%20error%29%3B%5Cn%20%20%7D%5Cn%5Cntry%20%7B%5Cn%20%20let%20cookie_site%20%3D%20document.cookie.split%28%22%3B%20%22%29.find%28%28row%29%20%3D%3E%20row.startsWith%28%22sanitize%3D%22%29%29%3B%5Cn%20%20if%20%28cookie_site%20%21%3D%3D%20null%29%7B%5Cn%20%20%20%20cookie_site%20%3D%20cookie_site.split%28%22%3D%22%29%5B1%5D%3B%5Cn%20%20%20%20if%28fetch_url.hostname%20%21%3D%20cookie_site%29%7B%5Cn%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bcookie-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20cookie_site%29%3B%5Cn%20%20%20%20%20%20return%20true%3B%5Cn%20%20%20%20%7D%5Cn%20%20%7D%5Cn%20%20cookieStore.get%28%22sanitize%22%29.then%28c%20%3D%3E%20%7B%5Cn%20%20%20%20%20%20if%28fetch_url.hostname%20%21%3D%20c.value%29%20%7B%5Cn%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bcookie-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20c.value%29%3B%5Cn%20%20%20%20%7D%5Cn%20%20%7D%29.catch%28e%20%3D%3E%20%7B%7D%29%3B%5Cn%7D%20catch%20%28error%29%20%7B%5Cn%20%20console.log%28%22Cookie%3A%20%22%20%2B%20error%29%3B%5Cn%7D%5Cntry%20%7B%5Cn%20%20let%20partitioned_cookie_site%20%3D%20document.cookie.split%28%22%3B%20%22%29.find%28%28row%29%20%3D%3E%20row.startsWith%28%22sanitize_partitioned%3D%22%29%29%3B%5Cn%20%20if%20%28partitioned_cookie_site%20%21%3D%3D%20null%29%7B%5Cn%20%20%20%20partitioned_cookie_site%20%3D%20partitioned_cookie_site.split%28%22%3D%22%29%5B1%5D%3B%5Cn%20%20%20%20if%28fetch_url.hostname%20%21%3D%20partitioned_cookie_site%29%7B%5Cn%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bcookie_partitioned-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20partitioned_cookie_site%29%3B%5Cn%20%20%20%20%20%20return%20true%3B%5Cn%20%20%20%20%7D%5Cn%20%20%7D%5Cn%20%20cookieStore.get%28%22sanitize_partitioned%22%29%5Cn%20%20%20%20.then%28c%20%3D%3E%20%7B%5Cn%20%20%20%20%20%20if%28fetch_url.hostname%20%21%3D%20c.value%29%20%7B%20console.log%28%22%5BUXSS%5D%20%5Bcookie_partitioned-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20c.value%29%3B%7D%5Cn%20%20%20%20%7D%29.catch%28e%20%3D%3E%20%7B%7D%29%3B%5Cn%7D%20catch%20%28error%29%20%7B%5Cn%20%20console.log%28%22Cookie%3A%20%22%20%2B%20error%29%3B%5Cn%7D%5Cntry%20%7B%5Cn%20%20let%20storage_site%20%3D%20localStorage.getItem%28%22sanitize%22%29%3B%5Cn%20%20if%28storage_site%20%21%3D%20null%20%26%26%20fetch_url.hostname%20%21%3D%20storage_site%29%7B%5Cn%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5BlocalStorage-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20storage_site%29%5Cn%20%20%20%20%20%20return%20true%3B%5Cn%20%20%7D%5Cn%7D%20catch%20%28error%29%20%7B%5Cn%20%20console.log%28%22localStorage%3A%20%22%20%2B%20error%29%3B%5Cn%7D%5Cn%5Cn%20%20try%20%7B%5Cn%20%20%20%20let%20openRequest%20%3D%20indexedDB.open%28%22sanitize%22%2C%201%29%3B%5Cn%5Cn%20%20%20%20openRequest.onsuccess%20%3D%20function%28e%29%20%7B%5Cn%20%20%20%20%20%20let%20db%20%3D%20e.target.result%3B%5Cn%20%20%20%20%20%20let%20transaction%20%3D%20db.transaction%28%5B%22sanitize%22%5D%2C%20%22readonly%22%29%3B%5Cn%20%20%20%20%20%20let%20store%20%3D%20transaction.objectStore%28%22sanitize%22%29%3B%5Cn%20%20%20%20%20%20let%20request%20%3D%20store.get%28%22sanitize%22%29%3B%5Cn%5Cn%20%20%20%20%20%20request.onsuccess%20%3D%20function%28e%29%20%7B%5Cn%20%20%20%20%20%20%20%20let%20indexeddb_site%20%3D%20e.target.result.value%3B%5Cn%20%20%20%20%20%20%20%20if%20%28fetch_url.hostname%20%21%3D%20indexeddb_site%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bindexeddb-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20indexeddb_site%29%5Cn%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%20%20db.close%28%29%3B%5Cn%20%20%20%20%20%20%7D%3B%5Cn%5Cn%20%20%20%20%20%20request.onerror%20%3D%20function%28e%29%20%7B%5Cn%20%20%20%20%20%20%20%20console.log%28%22Error%20reading%20data%3A%22%2C%20e.target.error%29%3B%5Cn%20%20%20%20%20%20%20%20db.close%28%29%3B%5Cn%20%20%20%20%20%20%7D%3B%5Cn%20%20%20%20%7D%3B%5Cn%5Cn%20%20%20%20openRequest.onerror%20%3D%20function%28e%29%20%7B%5Cn%20%20%20%20%20%20console.log%28%22Error%20opening%20database%3A%22%2C%20e.target.error%29%3B%5Cn%20%20%20%20%7D%3B%5Cn%7D%20catch%20%28e%29%20%7B%7D%5Cn%5Cn%20%20try%20%7B%5Cn%20%20%20%20async%20function%20readOriginPrivateFilesystem%28%29%7B%5Cn%20%20%20%20%20%20try%20%7B%5Cn%20%20%20%20%20%20%20%20const%20dirHandle%20%3D%20await%20navigator.storage.getDirectory%28%29%3B%5Cn%20%20%20%20%20%20%20%20const%20fileHandle%20%3D%20await%20dirHandle.getFileHandle%28%22sanitize%22%2C%20%7Bcreate%3A%20false%7D%29%3B%5Cn%20%20%20%20%20%20%20%20const%20file%20%3D%20await%20fileHandle.getFile%28%29%3B%5Cn%20%20%20%20%20%20%20%20const%20opfs_site%20%3D%20await%20file.text%28%29%3B%5Cn%20%20%20%20%20%20%20%20if%28opfs_site%20%21%3D%20%22%22%20%26%26%20fetch_url.hostname%20%21%3D%20opfs_site%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bopfs-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20opfs_site%29%3B%5Cn%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%7D%20catch%20%28error%29%20%7B%5Cn%20%20%20%20%20%20%20%20console.log%28%22OPFS%3A%20%22%20%2B%20error%29%3B%5Cn%20%20%20%20%20%20%7D%5Cn%20%20%20%20%7D%5Cn%20%20%20%20readOriginPrivateFilesystem%28%29%3B%5Cn%20%20%7D%20catch%20%28error%29%20%7B%5Cn%20%20%20%20console.log%28%22OPFS%3A%20%22%20%2B%20error%29%3B%5Cn%20%20%7D%5Cn%20%20try%20%7B%5Cn%20%20%20%20function%20onFsError%28error%29%20%7B%5Cn%20%20%20%20%20%20console.log%28%22FileSystem%3A%20%22%20%2B%20error%29%5Cn%20%20%20%20%7D%5Cn%5Cn%20%20%20%20function%20onFileEntryRead%28fe%29%20%7B%5Cn%20%20%20%20%20%20try%20%7B%5Cn%20%20%20%20%20%20%20%20fe.file%28%20%28f%29%20%3D%3E%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20f.text%28%29%5Cn%20%20%20%20%20%20%20%20%20%20%20%20.then%28%20%28filesystem_site%29%20%3D%3E%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%28filesystem_site%20%21%3D%20%22%22%20%26%26%20fetch_url.hostname%20%21%3D%20filesystem_site%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bfilesystem-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20filesystem_site%29%3B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%7D%29%5Cn%20%20%20%20%20%20%20%20%7D%29%3B%5Cn%20%20%20%20%20%20%7D%20catch%20%28error%29%20%7B%5Cn%20%20%20%20%20%20%20%20console.log%28%22FileSystem%3A%20%22%20%2B%20error%29%3B%5Cn%20%20%20%20%20%20%7D%5Cn%20%20%20%20%7D%5Cn%5Cn%20%20%20%20function%20onFsRead%28fs%29%20%7B%5Cn%20%20%20%20%20%20fs.root.getFile%28%22sanitize%22%2C%20%7Bcreate%3A%20false%7D%2C%20onFileEntryRead%2C%20onFsError%29%3B%5Cn%20%20%20%20%7D%5Cn%20%20%20%20webkitRequestFileSystem%28Window.TEMPORARY%2C%20256%2C%20onFsRead%2C%20onFsError%29%3B%5Cn%20%20%7D%20catch%20%28error%29%20%7B%5Cn%20%20%20%20console.log%28%22OPFS%3A%20%22%20%2B%20error%29%3B%5Cn%20%20%7D%5Cn%5Cn%20%20try%20%7B%5Cn%20%20%20%20let%20hosts%20%3D%20%5B%22127.0.0.1%22%2C%20%22127.0.0.2%22%5D%3B%5Cn%20%20%20%20hosts.forEach%28host%20%3D%3E%20%7B%5Cn%20%20%20%20%20%20var%20x%20%3D%20new%20XMLHttpRequest%28%29%3B%5Cn%5Cn%20%20%20%20%20%20x.onload%20%3D%20function%20%28%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20if%20%28this.readyState%20%3D%3D%204%20%26%26%20this.status%20%3D%3D%20200%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20let%20filesystem_site%20%3D%20x.responseText%3B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%20%28filesystem_site%20%21%3D%20%22%22%20%26%26%20fetch_url.hostname%20%21%3D%20filesystem_site%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bfilesystem-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20filesystem_site%29%3B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%7D%3B%5Cn%5Cn%20%20%20%20%20%20x.open%28%22GET%22%2C%20%22filesystem%3Ahttp%3A//%22%20%2B%20host%20%2B%20%22%3A8080/temporary/sanitize%22%2C%20true%29%3B%5Cn%20%20%20%20%20%20x.send%28%29%3B%5Cn%20%20%20%20%7D%29%3B%5Cn%20%20%7D%20catch%20%28error%29%20%7B%5Cn%7D%5Cn%5Cn%20%20let%20hosts%20%3D%20%5B%22127.0.0.1%22%2C%20%22127.0.0.2%22%5D%3B%5Cn%20%20hosts.forEach%28host%20%3D%3E%20%7B%5Cn%20%20%20%20let%20url%20%3D%20%22http%3A//%22%20%2B%20host%20%2B%20%22%3A8080/sanitizer%3Fnonce%3D%22%20%2B%20token%3B%5Cn%20%20%20%20try%20%7B%5Cn%20%20%20%20%20%20fetch%28url%29.then%28%28response%29%20%3D%3E%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20if%20%28response.ok%28%29%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20let%20text%20%3D%20response.text%28%29%3B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20if%20%28text.includes%28%22127.0.0.1%22%29%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bfetch-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20host%20%2B%20%22%20%22%20%2B%20text%29%3B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%7D%29.catch%28error%20%3D%3E%20%7B%7D%29%3B%5Cn%20%20%20%20%7D%20catch%20%28error%29%20%7B%7D%5Cn%5Cn%20%20%20%20url%20%3D%20%22http%3A//%22%20%2B%20host%20%2B%20%22%3A8080/sanitizer-cookie%3Fnonce%3D%22%20%2B%20token%3B%5Cn%20%20%20%20try%20%7B%5Cn%20%20%20%20%20%20fetch%28url%2C%20%7B%5Cn%20%20%20%20%20%20%20%20credentials%3A%20%22include%22%2C%5Cn%20%20%20%20%20%20%20%20mode%3A%20%22cors%22%2C%5Cn%20%20%20%20%20%20%7D%29.then%28%28response%29%20%3D%3E%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20if%20%28response.ok%28%29%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20let%20text%20%3D%20response.text%28%29%3B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20if%20%28text.includes%28%22127.0.0.1%22%29%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bfetch-credentialed-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20host%20%2B%20%22%20%22%20%2B%20text%29%3B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%7D%29.catch%28error%20%3D%3E%20%7B%7D%29%3B%5Cn%20%20%20%20%7D%20catch%20%28error%29%20%7B%7D%5Cn%20%20%7D%29%3B%5Cn%20%20return%20false%3B%5Cn%7D%5Cn%7D%20catch%20%28e%29%20%7Bconsole.log%28e%29%7D%5Cntry%20%7B%5Cn%09function%20check_iframe_site_violation%28src%2C%20frame%2C%20token%29%7B%5Cn%20%20try%20%7B%5Cn%20%20%20%20let%20fetch_url%20%3D%20new%20URL%28src%29%3B%5Cn%20%20%20%20let%20cookie_site%20%3D%20frame.contentWindow.document.cookie.split%28%22%3B%20%22%29.find%28%28row%29%20%3D%3E%20row.startsWith%28%22sanitize%3D%22%29%29%5Cn%20%20%20%20if%20%28cookie_site%20%21%3D%3D%20null%29%20%7B%5Cn%20%20%20%20%20%20cookie_site%20%3D%20cookie_site.split%28%22%3D%22%29%5B1%5D%3B%5Cn%20%20%20%20%20%20if%28cookie_site%20%21%3D%20null%20%26%26%20fetch_url.hostname%20%21%3D%20cookie_site%29%7B%5Cn%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Biframe-cookie-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20cookie_site%29%3B%5Cn%20%20%20%20%20%20%7D%5Cn%20%20%20%20%7D%5Cn%20%20%7D%20catch%20%28error%29%20%7B%5Cn%20%20%20%20console.log%28%22Iframe%20Cookie%3A%20%22%20%2B%20error%29%3B%5Cn%20%20%7D%5Cn%7D%5Cn%7D%20catch%20%28e%29%20%7Bconsole.log%28e%29%7D%5Cntry%20%7B%5Cn%09function%20check_window_site_violation%28src%2C%20win%2C%20token%29%7B%5Cn%20%20try%20%7B%5Cn%20%20%20%20let%20fetch_url%20%3D%20new%20URL%28src%29%3B%5Cn%20%20%20%20let%20cookie_site%20%3D%20win.document.cookie.split%28%22%3B%20%22%29.find%28%28row%29%20%3D%3E%20row.startsWith%28%22sanitize%3D%22%29%29%3B%5Cn%20%20%20%20if%20%28cookie_site%20%21%3D%3D%20null%29%20%7B%5Cn%20%20%20%20%20%20cookie_site%20%3D%20cookie_site.split%28%22%3D%22%29%5B1%5D%3B%5Cn%20%20%20%20%20%20if%28cookie_site%20%21%3D%20null%20%26%26%20fetch_url.hostname%20%21%3D%20cookie_site%29%7B%5Cn%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bwin-cookie-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20cookie_site%29%3B%5Cn%20%20%20%20%20%20%7D%5Cn%20%20%20%20%7D%5Cn%20%20%7D%20catch%20%28error%29%20%7B%5Cn%20%20%20%20console.log%28%22Window%20Cookie%3A%20%22%20%2B%20error%29%3B%5Cn%20%20%7D%5Cn%7D%5Cn%7D%20catch%20%28e%29%20%7Bconsole.log%28e%29%7D%5Cn%3C%5C/script%3E%5Cn%3C/head%3E%5Cn%3Cbody%3E%5Cn%3Ch1%3E8d634152%3C/h1%3E%3Cp%3Efoo%3C/p%3E%5Cn%3Cscript%3E%5Cnasync%20function%20foo%28%29%20%7B%5Cn%09try%20%7B%5Cn%09%09function%20check_site_violation%28src%2C%20exec%2C%20token%29%7B%5Cn%5Cnlet%20fetch_url%20%3D%20new%20URL%28src%29%3B%5Cnlet%20exec_url%20%3D%20new%20URL%28exec%29%3B%5Cnif%28fetch_url.hostname%20%21%3D%20exec_url.hostname%29%7B%5Cn%20%20console.log%28%22%5BUXSS%5D%20%5Bexec-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20exec_url.hostname%29%3B%5Cn%20%20return%20true%3B%5Cn%7D%5Cn%20%20try%20%7B%5Cn%20%20%20%20if%28IPCFuzzer.check_isolation%28src%29%29%7B%5Cn%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bprocess-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20src%29%3B%5Cn%20%20%20%20%20%20return%20true%3B%5Cn%20%20%20%20%7D%5Cn%20%20%7D%20catch%20%28error%29%20%7B%5Cn%20%20%20%20console.log%28%22Process%20Isolation%20Check%3A%20%22%20%2B%20error%29%3B%5Cn%20%20%7D%5Cn%5Cntry%20%7B%5Cn%20%20let%20cookie_site%20%3D%20document.cookie.split%28%22%3B%20%22%29.find%28%28row%29%20%3D%3E%20row.startsWith%28%22sanitize%3D%22%29%29%3B%5Cn%20%20if%20%28cookie_site%20%21%3D%3D%20null%29%7B%5Cn%20%20%20%20cookie_site%20%3D%20cookie_site.split%28%22%3D%22%29%5B1%5D%3B%5Cn%20%20%20%20if%28fetch_url.hostname%20%21%3D%20cookie_site%29%7B%5Cn%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bcookie-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20cookie_site%29%3B%5Cn%20%20%20%20%20%20return%20true%3B%5Cn%20%20%20%20%7D%5Cn%20%20%7D%5Cn%20%20cookieStore.get%28%22sanitize%22%29.then%28c%20%3D%3E%20%7B%5Cn%20%20%20%20%20%20if%28fetch_url.hostname%20%21%3D%20c.value%29%20%7B%5Cn%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bcookie-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20c.value%29%3B%5Cn%20%20%20%20%7D%5Cn%20%20%7D%29.catch%28e%20%3D%3E%20%7B%7D%29%3B%5Cn%7D%20catch%20%28error%29%20%7B%5Cn%20%20console.log%28%22Cookie%3A%20%22%20%2B%20error%29%3B%5Cn%7D%5Cntry%20%7B%5Cn%20%20let%20partitioned_cookie_site%20%3D%20document.cookie.split%28%22%3B%20%22%29.find%28%28row%29%20%3D%3E%20row.startsWith%28%22sanitize_partitioned%3D%22%29%29%3B%5Cn%20%20if%20%28partitioned_cookie_site%20%21%3D%3D%20null%29%7B%5Cn%20%20%20%20partitioned_cookie_site%20%3D%20partitioned_cookie_site.split%28%22%3D%22%29%5B1%5D%3B%5Cn%20%20%20%20if%28fetch_url.hostname%20%21%3D%20partitioned_cookie_site%29%7B%5Cn%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bcookie_partitioned-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20partitioned_cookie_site%29%3B%5Cn%20%20%20%20%20%20return%20true%3B%5Cn%20%20%20%20%7D%5Cn%20%20%7D%5Cn%20%20cookieStore.get%28%22sanitize_partitioned%22%29%5Cn%20%20%20%20.then%28c%20%3D%3E%20%7B%5Cn%20%20%20%20%20%20if%28fetch_url.hostname%20%21%3D%20c.value%29%20%7B%20console.log%28%22%5BUXSS%5D%20%5Bcookie_partitioned-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20c.value%29%3B%7D%5Cn%20%20%20%20%7D%29.catch%28e%20%3D%3E%20%7B%7D%29%3B%5Cn%7D%20catch%20%28error%29%20%7B%5Cn%20%20console.log%28%22Cookie%3A%20%22%20%2B%20error%29%3B%5Cn%7D%5Cntry%20%7B%5Cn%20%20let%20storage_site%20%3D%20localStorage.getItem%28%22sanitize%22%29%3B%5Cn%20%20if%28storage_site%20%21%3D%20null%20%26%26%20fetch_url.hostname%20%21%3D%20storage_site%29%7B%5Cn%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5BlocalStorage-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20storage_site%29%5Cn%20%20%20%20%20%20return%20true%3B%5Cn%20%20%7D%5Cn%7D%20catch%20%28error%29%20%7B%5Cn%20%20console.log%28%22localStorage%3A%20%22%20%2B%20error%29%3B%5Cn%7D%5Cn%5Cn%20%20try%20%7B%5Cn%20%20%20%20let%20openRequest%20%3D%20indexedDB.open%28%22sanitize%22%2C%201%29%3B%5Cn%5Cn%20%20%20%20openRequest.onsuccess%20%3D%20function%28e%29%20%7B%5Cn%20%20%20%20%20%20let%20db%20%3D%20e.target.result%3B%5Cn%20%20%20%20%20%20let%20transaction%20%3D%20db.transaction%28%5B%22sanitize%22%5D%2C%20%22readonly%22%29%3B%5Cn%20%20%20%20%20%20let%20store%20%3D%20transaction.objectStore%28%22sanitize%22%29%3B%5Cn%20%20%20%20%20%20let%20request%20%3D%20store.get%28%22sanitize%22%29%3B%5Cn%5Cn%20%20%20%20%20%20request.onsuccess%20%3D%20function%28e%29%20%7B%5Cn%20%20%20%20%20%20%20%20let%20indexeddb_site%20%3D%20e.target.result.value%3B%5Cn%20%20%20%20%20%20%20%20if%20%28fetch_url.hostname%20%21%3D%20indexeddb_site%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bindexeddb-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20indexeddb_site%29%5Cn%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%20%20db.close%28%29%3B%5Cn%20%20%20%20%20%20%7D%3B%5Cn%5Cn%20%20%20%20%20%20request.onerror%20%3D%20function%28e%29%20%7B%5Cn%20%20%20%20%20%20%20%20console.log%28%22Error%20reading%20data%3A%22%2C%20e.target.error%29%3B%5Cn%20%20%20%20%20%20%20%20db.close%28%29%3B%5Cn%20%20%20%20%20%20%7D%3B%5Cn%20%20%20%20%7D%3B%5Cn%5Cn%20%20%20%20openRequest.onerror%20%3D%20function%28e%29%20%7B%5Cn%20%20%20%20%20%20console.log%28%22Error%20opening%20database%3A%22%2C%20e.target.error%29%3B%5Cn%20%20%20%20%7D%3B%5Cn%7D%20catch%20%28e%29%20%7B%7D%5Cn%5Cn%20%20try%20%7B%5Cn%20%20%20%20async%20function%20readOriginPrivateFilesystem%28%29%7B%5Cn%20%20%20%20%20%20try%20%7B%5Cn%20%20%20%20%20%20%20%20const%20dirHandle%20%3D%20await%20navigator.storage.getDirectory%28%29%3B%5Cn%20%20%20%20%20%20%20%20const%20fileHandle%20%3D%20await%20dirHandle.getFileHandle%28%22sanitize%22%2C%20%7Bcreate%3A%20false%7D%29%3B%5Cn%20%20%20%20%20%20%20%20const%20file%20%3D%20await%20fileHandle.getFile%28%29%3B%5Cn%20%20%20%20%20%20%20%20const%20opfs_site%20%3D%20await%20file.text%28%29%3B%5Cn%20%20%20%20%20%20%20%20if%28opfs_site%20%21%3D%20%22%22%20%26%26%20fetch_url.hostname%20%21%3D%20opfs_site%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bopfs-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20opfs_site%29%3B%5Cn%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%7D%20catch%20%28error%29%20%7B%5Cn%20%20%20%20%20%20%20%20console.log%28%22OPFS%3A%20%22%20%2B%20error%29%3B%5Cn%20%20%20%20%20%20%7D%5Cn%20%20%20%20%7D%5Cn%20%20%20%20readOriginPrivateFilesystem%28%29%3B%5Cn%20%20%7D%20catch%20%28error%29%20%7B%5Cn%20%20%20%20console.log%28%22OPFS%3A%20%22%20%2B%20error%29%3B%5Cn%20%20%7D%5Cn%20%20try%20%7B%5Cn%20%20%20%20function%20onFsError%28error%29%20%7B%5Cn%20%20%20%20%20%20console.log%28%22FileSystem%3A%20%22%20%2B%20error%29%5Cn%20%20%20%20%7D%5Cn%5Cn%20%20%20%20function%20onFileEntryRead%28fe%29%20%7B%5Cn%20%20%20%20%20%20try%20%7B%5Cn%20%20%20%20%20%20%20%20fe.file%28%20%28f%29%20%3D%3E%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20f.text%28%29%5Cn%20%20%20%20%20%20%20%20%20%20%20%20.then%28%20%28filesystem_site%29%20%3D%3E%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%28filesystem_site%20%21%3D%20%22%22%20%26%26%20fetch_url.hostname%20%21%3D%20filesystem_site%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bfilesystem-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20filesystem_site%29%3B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%7D%29%5Cn%20%20%20%20%20%20%20%20%7D%29%3B%5Cn%20%20%20%20%20%20%7D%20catch%20%28error%29%20%7B%5Cn%20%20%20%20%20%20%20%20console.log%28%22FileSystem%3A%20%22%20%2B%20error%29%3B%5Cn%20%20%20%20%20%20%7D%5Cn%20%20%20%20%7D%5Cn%5Cn%20%20%20%20function%20onFsRead%28fs%29%20%7B%5Cn%20%20%20%20%20%20fs.root.getFile%28%22sanitize%22%2C%20%7Bcreate%3A%20false%7D%2C%20onFileEntryRead%2C%20onFsError%29%3B%5Cn%20%20%20%20%7D%5Cn%20%20%20%20webkitRequestFileSystem%28Window.TEMPORARY%2C%20256%2C%20onFsRead%2C%20onFsError%29%3B%5Cn%20%20%7D%20catch%20%28error%29%20%7B%5Cn%20%20%20%20console.log%28%22OPFS%3A%20%22%20%2B%20error%29%3B%5Cn%20%20%7D%5Cn%5Cn%20%20try%20%7B%5Cn%20%20%20%20let%20hosts%20%3D%20%5B%22127.0.0.1%22%2C%20%22127.0.0.2%22%5D%3B%5Cn%20%20%20%20hosts.forEach%28host%20%3D%3E%20%7B%5Cn%20%20%20%20%20%20var%20x%20%3D%20new%20XMLHttpRequest%28%29%3B%5Cn%5Cn%20%20%20%20%20%20x.onload%20%3D%20function%20%28%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20if%20%28this.readyState%20%3D%3D%204%20%26%26%20this.status%20%3D%3D%20200%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20let%20filesystem_site%20%3D%20x.responseText%3B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%20%28filesystem_site%20%21%3D%20%22%22%20%26%26%20fetch_url.hostname%20%21%3D%20filesystem_site%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bfilesystem-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20fetch_url.hostname%20%2B%20%22%20%22%20%2B%20filesystem_site%29%3B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%7D%3B%5Cn%5Cn%20%20%20%20%20%20x.open%28%22GET%22%2C%20%22filesystem%3Ahttp%3A//%22%20%2B%20host%20%2B%20%22%3A8080/temporary/sanitize%22%2C%20true%29%3B%5Cn%20%20%20%20%20%20x.send%28%29%3B%5Cn%20%20%20%20%7D%29%3B%5Cn%20%20%7D%20catch%20%28error%29%20%7B%5Cn%7D%5Cn%5Cn%20%20let%20hosts%20%3D%20%5B%22127.0.0.1%22%2C%20%22127.0.0.2%22%5D%3B%5Cn%20%20hosts.forEach%28host%20%3D%3E%20%7B%5Cn%20%20%20%20let%20url%20%3D%20%22http%3A//%22%20%2B%20host%20%2B%20%22%3A8080/sanitizer%3Fnonce%3D%22%20%2B%20token%3B%5Cn%20%20%20%20try%20%7B%5Cn%20%20%20%20%20%20fetch%28url%29.then%28%28response%29%20%3D%3E%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20if%20%28response.ok%28%29%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20let%20text%20%3D%20response.text%28%29%3B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20if%20%28text.includes%28%22127.0.0.1%22%29%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bfetch-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20host%20%2B%20%22%20%22%20%2B%20text%29%3B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%7D%29.catch%28error%20%3D%3E%20%7B%7D%29%3B%5Cn%20%20%20%20%7D%20catch%20%28error%29%20%7B%7D%5Cn%5Cn%20%20%20%20url%20%3D%20%22http%3A//%22%20%2B%20host%20%2B%20%22%3A8080/sanitizer-cookie%3Fnonce%3D%22%20%2B%20token%3B%5Cn%20%20%20%20try%20%7B%5Cn%20%20%20%20%20%20fetch%28url%2C%20%7B%5Cn%20%20%20%20%20%20%20%20credentials%3A%20%22include%22%2C%5Cn%20%20%20%20%20%20%20%20mode%3A%20%22cors%22%2C%5Cn%20%20%20%20%20%20%7D%29.then%28%28response%29%20%3D%3E%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20if%20%28response.ok%28%29%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20let%20text%20%3D%20response.text%28%29%3B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20if%20%28text.includes%28%22127.0.0.1%22%29%29%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20console.log%28%22%5BUXSS%5D%20%5Bfetch-credentialed-%22%20%2B%20token%20%2B%20%22%5D%20%22%20%2B%20host%20%2B%20%22%20%22%20%2B%20text%29%3B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%7D%29.catch%28error%20%3D%3E%20%7B%7D%29%3B%5Cn%20%20%20%20%7D%20catch%20%28error%29%20%7B%7D%5Cn%20%20%7D%29%3B%5Cn%20%20return%20false%3B%5Cn%7D%5Cn%09%7D%20catch%20%28e%29%20%7Bconsole.log%28e%29%7D%5Cn%09try%20%7B%5Cn%09%09check_site_violation%28%22http%3A//127.0.0.1%3A8080%22%2C%20location.origin%2C%20%22bd4e5af7%22%29%3B%5Cn%5Cn%09%7D%20catch%20%28e%29%20%7Bconsole.log%28e%29%7D%5Cn%7D%5Cnfoo%28%29%3B%5Cn%3C%5C/script%3E%5Cn%3C/body%3E%5Cn%3C/html%3E');
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var7 = await window.navigation.forward(func1_var0);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var9 = 'device';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var8 = {referenceFrame: func1_var9, };
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var10 = new AbsoluteOrientationSensor(func1_var8);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var11 = 'foo';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var12 = await func1_var10.removeEventListener(func1_var11,func1_var3,window.closed);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var13 = await window.navigation.dispatchEvent(event);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var14 = 'http://127.0.0.2:8080/input-8342_page-2.html#b09f1c64';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var15 = await window.navigation.traverseTo(func1_var14,func1_var0);
+		} catch (e) {console.log(e)}
+
+		try {
+			IPCFuzzer.mutate_site_for_cookies_replace_host('http://127.0.0.2:8080/input-8342_page-1.html');
+		} catch (e) {console.log(e)}
+
+		try {
+			IPCFuzzer.mutate_url_replace_host('http://127.0.0.2:8080/input-8342_page-1.html');
+		} catch (e) {console.log(e)}
+
+		try {
+			var func1_var16 = undefined;
+		} catch (e) {console.log(e)}
+
+		return func1_var16;
+	}
+	try {
+		var var8 = {handleEvent: func1};
+	} catch (e) {console.log(e)}
+	try {
+		var var9 = await window.navigation.removeEventListener(var7,var8,window.closed);
+	} catch (e) {console.log(e)}
+	try {
+		IPCFuzzer.mutate_url_replace_host('http://127.0.0.2:8080/input-8342_page-2.html');
+	} catch (e) {console.log(e)}
+}
+foo();
+</script>
+</body>
+</html>

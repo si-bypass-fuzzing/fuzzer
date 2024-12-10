@@ -22,6 +22,7 @@ import os
 from .shm import CoverageCollector, SHM_SIZE, ShmBitmap
 from .util import *
 
+SANDBOX: bool = False
 
 TIMEOUT: int = 3
 HEADLESS: bool = True
@@ -37,21 +38,26 @@ const { firefox } = require('playwright');
 """
 
 
-    
 def kill_chrome_processes():
-    os.system("killall -s 9 'playwright.sh'; killall -s 9 chrome; find /tmp -type d -name 'playwright*' -exec rm -r {} + 2>/dev/null")
+    os.system(
+        "killall -s 9 'playwright.sh'; killall -s 9 chrome; find /tmp -type d -name 'playwright*' -exec rm -r {} + 2>/dev/null"
+    )
+
 
 def kill_firefox_processes():
-    os.system("killall -s 9 'playwright.sh'; killall -s 9 node; find /tmp -type d -name 'playwright*' -exec rm -r {} + 2>/dev/null")
+    os.system(
+        "killall -s 9 'playwright.sh'; killall -s 9 node; find /tmp -type d -name 'playwright*' -exec rm -r {} + 2>/dev/null"
+    )
 
-class BrowserContextWrapper():
+
+class BrowserContextWrapper:
     def __init__(self, context: BrowserContext, browser_type: str):
         self.context = context
         self.browser_type = browser_type
 
     async def __aenter__(self) -> BrowserContext:
         return self.context
-    
+
     async def __aexit__(self, type, value, traceback):
         try:
             await asyncio.wait_for(self.context.close(), timeout=TIMEOUT * 0.25)
@@ -65,19 +71,22 @@ class BrowserContextWrapper():
                 await asyncio.wait_for(self.context.close(), timeout=TIMEOUT * 0.25)
             except asyncio.TimeoutError:
                 raise Exception("BrowserContextWrapper exit timeout")
-            
 
-class PlaywrightContextWrapper():
+
+class PlaywrightContextWrapper:
     def __init__(self, context: PlaywrightContextManager, browser_type: str):
         self.context = context
         self.browser_type = browser_type
 
     async def __aenter__(self) -> Playwright:
         return await self.context.__aenter__()
-    
+
     async def __aexit__(self, type, value, traceback):
         try:
-            await asyncio.wait_for(self.context.__aexit__(self, type, value, traceback), timeout=TIMEOUT * 0.25)
+            await asyncio.wait_for(
+                self.context.__aexit__(self, type, value, traceback),
+                timeout=TIMEOUT * 0.25,
+            )
         except asyncio.TimeoutError as e:
             logging.error("PlaywrightContextWrapper exit timeout")
             if self.browser_type == "chrome":
@@ -85,7 +94,10 @@ class PlaywrightContextWrapper():
             elif self.browser_type == "firefox":
                 kill_firefox_processes()
             try:
-                await asyncio.wait_for(self.context.__aexit__(self, type, value, traceback), timeout=TIMEOUT * 0.25)
+                await asyncio.wait_for(
+                    self.context.__aexit__(self, type, value, traceback),
+                    timeout=TIMEOUT * 0.25,
+                )
             except asyncio.TimeoutError:
                 raise Exception("PlaywrightContextWrapper exit timeout")
 
@@ -100,6 +112,7 @@ async def fuzz(
     crash_callback: Callable[[list[dict]], None],
     collect_coverage: bool,
     num_iterations: int | None,
+    browse_seeds: bool = False,
 ):
     # os.environ["PWDEBUG"] = "1"
     # os.environ["DEBUG"] = "pw:browser"
@@ -113,10 +126,11 @@ async def fuzz(
     if browser_type == "firefox":
         os.environ["MOZ_LOG"] = "uxss_logger:5"
         os.environ["MOZ_LOG_FILE"] = os.path.join(log_dir, "firefox.log")
-        os.environ["MOZ_DISABLE_CONTENT_SANDBOX"] = "1"
-        os.environ["MOZ_DISABLE_GMP_SANDBOX"] = "1"
-        os.environ["MOZ_DISABLE_RDD_SANDBOX"] = "1"
-        os.environ["MOZ_DISABLE_SOCKET_PROCESS_SANDBOX"] = "1"
+        if not SANDBOX:
+            os.environ["MOZ_DISABLE_CONTENT_SANDBOX"] = "1"
+            os.environ["MOZ_DISABLE_GMP_SANDBOX"] = "1"
+            os.environ["MOZ_DISABLE_RDD_SANDBOX"] = "1"
+            os.environ["MOZ_DISABLE_SOCKET_PROCESS_SANDBOX"] = "1"
         # os.environ["MOZ_IPC_MESSAGE_LOG"] = "1"
     elif browser_type == "chrome":
         os.environ["CHROME_LOG_FILE"] = os.path.join(log_dir, "chrome.log")
@@ -131,15 +145,20 @@ async def fuzz(
     else:
         ctr = ResetCtr()
 
-    
-    cov: list[CoverageCollector]| None =[ CoverageCollector("browser"), CoverageCollector("all")] if collect_coverage else None
+    cov: list[CoverageCollector] | None = (
+        [CoverageCollector("browser"), CoverageCollector("all")]
+        if collect_coverage
+        else None
+    )
 
     stat_collector: JSStatCollector = JSStatCollector()
 
     while ctr.check():
         try:
             try:
-                async with PlaywrightContextWrapper(async_playwright(), browser_type) as p:
+                async with PlaywrightContextWrapper(
+                    async_playwright(), browser_type
+                ) as p:
                     if remote:
                         if browser_type == "chrome":
                             fut = p.chromium.connect_over_cdp(browser_path)
@@ -150,19 +169,31 @@ async def fuzz(
                             fut = p.chromium.launch(
                                 executable_path=browser_path,
                                 headless=HEADLESS,
-                                chromium_sandbox=True,
-                                args=[
-                                    "--enable-logging",
-                                    "--log-level=0",
-                                    "--site-per-process",
-                                    "--disable-gpu-sandbox",
-                                    "--disable-namespace-sandbox",
-                                    "--disable-setuid-sandbox",
-                                    "--disable-seccomp-filter-sandbox",
-                                    "--no-zygote-sandbox",
-                                    "--no-sandbox"
+                                chromium_sandbox=SANDBOX,
+                                args=(
+                                    [
+                                        "--enable-logging",
+                                        "--log-level=0",
+                                        "--site-per-process",
+                                    ]
+                                    + [
+                                        "--disable-gpu-sandbox",
+                                        "--disable-namespace-sandbox",
+                                        "--disable-setuid-sandbox",
+                                        "--disable-seccomp-filter-sandbox",
+                                        "--no-zygote-sandbox",
+                                        "--no-sandbox",
+                                    ]
+                                    if not SANDBOX
+                                    else []
+                                ),
+                                ignore_default_args=[
+                                    "--disable-background-networking",
+                                    "--disable-ipc-flooding-protection",
+                                    "--disable-dev-shm-usage",
+                                    "--enable-features=NetworkService,NetworkServiceInProcess",
+                                    "--disable-renderer-backgrounding",
                                 ],
-                                ignore_default_args=['--disable-background-networking', '--disable-ipc-flooding-protection', '--disable-dev-shm-usage', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-renderer-backgrounding']
                             )
                         else:  # browser == "firefox"
                             fut = p.firefox.launch(
@@ -180,7 +211,8 @@ async def fuzz(
                             crash_callback,
                             ctr,
                             cov,
-                            stat_collector
+                            stat_collector,
+                            browse_seeds,
                         )
             except PlaywrightError as e:
                 logging.error(e)
@@ -209,17 +241,28 @@ async def exec_loop(
     prune_callback: Callable[[bool], None],
     crash_callback: Callable[[list[dict]], None],
     ctr: Ctr,
-    coverage: list[CoverageCollector]|None,
-    stat_collector: JSStatCollector
+    coverage: list[CoverageCollector] | None,
+    stat_collector: JSStatCollector,
+    browse_seeds: bool,
 ) -> None:
 
-    async with BrowserContextWrapper(await browser.new_context(), browser_type) as context:
+    async with BrowserContextWrapper(
+        await browser.new_context(), browser_type
+    ) as context:
         we_handler: WebErrorHandler = WebErrorHandler()
 
         context.on("weberror", we_handler.handle)
 
-        await visit_seeds(context)
-        logging.info("Visited seeds")
+        if browse_seeds:
+            await visit_seeds(context)
+            logging.info("Visited seeds")
+        else:
+            fut = open_page(context, "about:blank")
+            try:
+                await asyncio.wait_for(fut, timeout=TIMEOUT * 0.5)
+            except asyncio.TimeoutError:
+                logging.warning("Testcase Timeout")
+
 
         console_handler: ConsoleHandler = ConsoleHandler()
 
@@ -232,7 +275,7 @@ async def exec_loop(
 
                 attacker_url = URLScope.to_url(1, 1, input_id)
                 victim_url = URLScope.to_url(2, 1, input_id)
-                await execute(context, attacker_url, victim_url, console_handler)
+                await execute(context, attacker_url, victim_url, console_handler, browse_seeds)
 
             except Exception as e:
                 # these should be executed even if the browser crashes
@@ -268,15 +311,20 @@ async def exec_loop(
             logging.info(f"Average time: {(current - start) / ctr.value():.2f} seconds")
             logging.info(stat_collector.log())
 
-async def cleanup(context: BrowserContext) -> None:
+
+async def cleanup(context: BrowserContext, keep_seeds: bool) -> None:
     """Close all pages except the first two."""
-    idx = 2
+    idx = 2 if keep_seeds is True else 1
     while idx < len(context.pages):
         await context.pages[idx].close()
 
 
 async def execute(
-    context: BrowserContext, attacker_url: str, victim_url: str, console_handler: ConsoleHandler
+    context: BrowserContext,
+    attacker_url: str,
+    victim_url: str,
+    console_handler: ConsoleHandler,
+    keep_seeds:bool
 ) -> None:
     console_handler.clear()
     context.on("console", console_handler.handle)
@@ -293,16 +341,16 @@ async def execute(
     except asyncio.TimeoutError:
         logging.warning("Testcase Timeout")
 
-    fut = cleanup(context)
+    fut = cleanup(context, keep_seeds)
     try:
         await asyncio.wait_for(fut, timeout=TIMEOUT * 0.5)
     except asyncio.TimeoutError:
         pass
 
 
-
 async def open_page(context: BrowserContext, url: str) -> None:
     page = await context.new_page()
+    page.on("dialog", lambda dialog: dialog.accept())
     await page.goto(url)
 
 
@@ -336,7 +384,9 @@ async def click_everything(page: Page) -> None:
         await link.click()
 
 
-def check_logs(browser_type:str, logs: list[dict], log_dir: str, stat_collector: JSStatCollector) -> bool:
+def check_logs(
+    browser_type: str, logs: list[dict], log_dir: str, stat_collector: JSStatCollector
+) -> bool:
     assert browser_type in ["firefox", "chrome"]
     for log in logs:
         if "[UXSS]" in log["text"]:
@@ -351,10 +401,10 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str, stat_collector:
             logging.info(log["text"])
             write_cause(log["text"], log_dir)
             return True
-        if "JS_EXCEPTION" in log['text']:
-            logging.error(log['text'])
+        if "JS_EXCEPTION" in log["text"]:
+            logging.error(log["text"])
             stat_collector.track_except("")
-        if "JS_FINALLY" in log['text']:
+        if "JS_FINALLY" in log["text"]:
             stat_collector.track_stmt()
 
     for filename in os.listdir(log_dir):
@@ -372,9 +422,13 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str, stat_collector:
         with open(os.path.join(log_dir, filename), "r") as f:
             for line in f.readlines():
                 if "[UXSS]" in line:
-                    if browser_type == "firefox" and firefox_false_positive_filter(line):
+                    if browser_type == "firefox" and firefox_false_positive_filter(
+                        line
+                    ):
                         continue
-                    elif browser_type == "chrome" and chrome_false_positive_filter(line):
+                    elif browser_type == "chrome" and chrome_false_positive_filter(
+                        line
+                    ):
                         continue
 
                     logging.info(line)
@@ -384,30 +438,37 @@ def check_logs(browser_type:str, logs: list[dict], log_dir: str, stat_collector:
 
     # TODO: similar filter for chrome
 
+
 def general_false_positive_filter(log: str) -> bool:
     idx: int = log.find("[UXSS]")
     if idx > 0 and log[idx - 1] in ["'", '"', "`"]:
         return True
     return False
 
+
 def chrome_false_positive_filter(log: str) -> bool:
-    if "http\\x00\\x00\\x00\\x00(\\x00\\x00\\x00 \\x00\\x00\\x008bf18cb9455f4a8e8fa93d14ab5ebb5d" in log:
-        return True
+    # if (
+    #     "http\\x00\\x00\\x00\\x00(\\x00\\x00\\x00 \\x00\\x00\\x008bf18cb9455f4a8e8fa93d14ab5ebb5d"
+    #     in log
+    # ):
+    #     return True
     return False
+
 
 def firefox_false_positive_filter(log: str) -> bool:
     if "D/uxss_logger" in log:
-        idx:int = log.find(MAGIC)
+        idx: int = log.find(MAGIC)
         if idx < 1:
             return True
         if log[idx - 1] in ["#", "?", "/"]:
             # filter out known leak of visited URLs to all renderers
             return True
-        if log[idx-1] in ["'", '"', "`"]:
+        if log[idx - 1] in ["'", '"', "`"]:
             # filter out leaks of victim pages due to missing CORB
-            return True            
+            return True
     return False
 
-def write_cause(cause:str, log_dir:str):
+
+def write_cause(cause: str, log_dir: str):
     with open(os.path.join(log_dir, "cause.txt"), "w") as f:
         f.write(cause)

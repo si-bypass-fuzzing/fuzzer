@@ -24,6 +24,8 @@ import random
 import psutil
 import time
 
+from .util import Ctr, MaxCtr, ResetCtr, DMSException, DeadMansSwitch
+
 
 TIMEOUT: int = 3
 HEADLESS: bool = True
@@ -35,32 +37,7 @@ pyppeteer.DEBUG = True
 
 dms = None
 
-class DMSException(Exception):
-    pass
 
-class DeadMansSwitch:
-    def __init__(self, timeout):
-        self.timeout = timeout
-        self.last_signal_time = time.time()
-        self.loop = asyncio.get_event_loop()
-        self.monitor_task = None
-
-    async def start(self):
-        self.monitor_task = asyncio.ensure_future(self._monitor())
-
-    def signal(self):
-        self.last_signal_time = time.time()
-
-    async def _monitor(self):
-        while True:
-            await asyncio.sleep(1)  # check every second
-            if time.time() - self.last_signal_time > self.timeout:
-                await self._handle_timeout()
-
-    async def _handle_timeout(self):
-        # kill_chrome_processes()
-        logging.error("DMS")
-        raise DMSException("Dead man's switch triggered: loop has not sent a signal for the specified timeout period.")
 
 class PatchedLauncher(Launcher):
     async def patched_launch(self, pipe) -> Browser:  # noqa: C901
@@ -127,43 +104,7 @@ async def patched_launch(pipe, options: dict|None = None, **kwargs: Any) -> Brow
     return await launcher.patched_launch(pipe) 
 
 
-class Ctr:
-    def __init__(self):
-        self.i: int = 0
 
-    def step(self) -> bool:
-        self.i += 1
-        return True
-
-    def check(self) -> bool:
-        return True
-
-    def value(self) -> int:
-        return self.i
-
-class MaxCtr(Ctr):
-    def __init__(self, max: int):
-        super().__init__()
-        self.max: int = max
-
-    def step(self) -> bool:
-        self.i += 1
-        return self.i < self.max
-
-    def check(self) -> bool:
-        return self.i < self.max
-    
-class ResetCtr(Ctr):
-    def __init__(self, interval:int = 100):
-        super().__init__()
-        self.interval:int = interval
-
-    def step(self) -> bool:
-        self.i += 1
-        return self.i % self.interval != 0
-
-    def check(self) -> bool:
-        return True
 
 def kill_chrome_processes():
     logging.error("kill_chrome_processes")
@@ -206,6 +147,7 @@ async def fuzz(
     prune_callback: Callable[[bool], None],
     crash_callback: Callable[[list[dict]], None],
     num_iterations: int | None,
+    browse_seeds: bool = True,
 ):
     os.environ["CHROME_LOG_FILE"] = os.path.join(log_dir, "chrome.log")
 
@@ -243,7 +185,8 @@ async def fuzz(
                         prune_callback,
                         crash_callback,
                         ctr,
-                        browser_out
+                        browser_out,
+                        browse_seeds=browse_seeds,
                     )
         except Exception as e:
             logging.exception(e)
@@ -264,10 +207,13 @@ async def exec_loop(
         crash_callback: Callable[[list[dict]], None],
         ctr: Ctr,
         browser_logs,
+        browse_seeds: bool = True,
     ) -> None:
     logging.info("exec-loop")
-    await asyncio.wait_for(visit_seeds(browser), timeout=TIMEOUT)
-    logging.info("Visited seeds")
+
+    if browse_seeds:
+        await asyncio.wait_for(visit_seeds(browser), timeout=TIMEOUT)
+        logging.info("Visited seeds")
 
     global dms
 
@@ -289,7 +235,8 @@ async def exec_loop(
 
         prune_callback(False)
 
-        dms.signal()
+        if dms is not None:
+            dms.signal()
 
         current: float = timer()
         logging.info(f"Iteration: {ctr.value()}")

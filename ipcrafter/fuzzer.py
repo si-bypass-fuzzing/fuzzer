@@ -9,7 +9,7 @@ from .jabby.web_grammar.grammar import Grammar
 from .jabby.generator.generator import Generator
 from . import executor
 
-from . import executor_old_pw
+from . import executor_old_pw, executor_pyppeteer
 
 PRUNE: bool = True
 
@@ -36,6 +36,7 @@ class Fuzzer:
         crash_callback: Callable[[list[dict]], None],
         collect_coverage: bool,
         num_iterations: int | None,
+        browse_seeds: bool,
     ) -> None:
         if browser_type == "chrome-99":
             asyncio.run(
@@ -49,6 +50,7 @@ class Fuzzer:
                     crash_callback,
                     collect_coverage,
                     num_iterations,
+                    browse_seeds,
                 )
             )
         else:
@@ -63,6 +65,7 @@ class Fuzzer:
                     crash_callback,
                     collect_coverage,
                     num_iterations,
+                    browse_seeds,
                 )
             )
 
@@ -102,6 +105,7 @@ class IPCFuzzer(Fuzzer):
         browser_path: str,
         collect_coverage: bool,
         num_iterations: int | None,
+        browse_seeds: bool = True,
     ) -> None:
 
         self.generator.create_output_dirs()
@@ -149,6 +153,7 @@ class IPCFuzzer(Fuzzer):
             save_crash,
             collect_coverage,
             num_iterations,
+            browse_seeds,
         )
 
 class PyppeteerFuzzer():
@@ -182,6 +187,7 @@ class PyppeteerFuzzer():
     def fuzz(self,
         browser_path: str,
         num_iterations: int | None,
+        browse_seeds: bool = True,
     ) -> None:
         self.generator.create_output_dirs()
         self.generator.generate_seed_pages()
@@ -224,7 +230,8 @@ class PyppeteerFuzzer():
             generate,
             prune,
             save_crash,
-            num_iterations
+            num_iterations,
+            browse_seeds
         )
 
     def run(
@@ -235,6 +242,7 @@ class PyppeteerFuzzer():
         prune_callback: Callable[[bool], None],
         crash_callback: Callable[[list[dict]], None],
         num_iterations: int | None,
+        browse_seeds: bool,
     ) -> None:
         asyncio.run(
             executor_pyppeteer.fuzz(
@@ -244,6 +252,7 @@ class PyppeteerFuzzer():
                 prune_callback,
                 crash_callback,
                 num_iterations,
+                browse_seeds
             ),
             debug=True
         )

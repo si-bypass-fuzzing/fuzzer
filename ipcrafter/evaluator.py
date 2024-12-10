@@ -4,7 +4,7 @@ import os
 from .fuzzers.fuzzorigin.src.script.testcase_generator import TestcaseGenerator as FuzzoriginTestcaseGenerator
 from .fuzzers.fuzzorigin.src.script.testcase import Testcase
 
-class FuzzoriginRunner(Fuzzer):
+class FuzzoriginEvaluator(Fuzzer):
     def __init__(self, browser: str, different_ips:bool=False,server_dir: str="server", crash_dir: str="crash", log_dir: str="logs"):
         self.browser = browser
        
@@ -21,13 +21,13 @@ class FuzzoriginRunner(Fuzzer):
         self.testcase_generator = FuzzoriginTestcaseGenerator(origins=self.origins, pages=self.pages)
 
     def get_name_prefix(self, input_id: int) -> str:
-        return f"input_{input_id}"
+        return f"input-{input_id}"
     
     def get_name(self, input_id: int, origin: int, page: int) -> str:
-        return f"{self.get_name_prefix(input_id)}_{origin}_{page}.html"
+        return f"{self.get_name_prefix(input_id)}_page-{page+1}.html"
     
     def get_path(self, input_id: int, origin: int, page: int) -> str:
-        return os.path.join(self.server_dir, self.get_name(input_id, origin, page))
+        return os.path.join(self.server_dir, f"origin-{origin+1}",self.get_name(input_id, origin, page))
 
 
     def fuzz(self, browser: str, remote: bool, browser_path: str, collect_coverage: bool, num_iterations: int | None) -> None:
@@ -61,4 +61,4 @@ class FuzzoriginRunner(Fuzzer):
         def crash_callback(logs: list[dict]) -> None:
             pass
 
-        super().run(browser, remote, browser_path, self.log_dir, generate, prune, crash_callback, collect_coverage, num_iterations)
+        super().run(browser, remote, browser_path, self.log_dir, generate, prune, crash_callback, collect_coverage, num_iterations, browse_seeds=False)
