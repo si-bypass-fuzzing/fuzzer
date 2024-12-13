@@ -64,6 +64,7 @@ def main():
         help="number of iterations to run",
         type=int,
         default=None,
+        dest="num_iterations"
     )
     parser.add_argument("--reproduce", help="reproduce a crash", type=str, metavar="CRASH_DIR", default=None)
     parser.add_argument("-t", "--coverage", help="enable coverage", action="store_true")
@@ -85,7 +86,7 @@ def main():
                     fuzzer.fuzz(args.path, None)
                 else:
                     fuzzer = IPCFuzzer(args.browser, args.webidl_dir, args.mdn_dir, server_dir=args.server_dir, log_dir=args.log_dir, crash_dir=args.crash_dir, grammar_output_path=args.grammar_output)
-                    fuzzer.fuzz(args.browser, args.remote, args.path, args.coverage, None)
+                    fuzzer.fuzz(args.browser, args.remote, args.path, args.coverage, args.num_iterations)
         case "fuzzorigin":
             runner = FuzzoriginEvaluator(args.browser, True, args.server_dir, args.log_dir, args.crash_dir)
             runner.fuzz(args.browser, args.remote, args.path, args.coverage, None)
