@@ -1,0 +1,6 @@
+2024-12-16 08:24:28,361 - root - INFO - Coverage 36340: 275044 edges covered (shm.py:116)
+2024-12-16 08:24:28,458 - root - INFO - Coverage 36340: 394365 edges covered (shm.py:116)
+2024-12-16 08:24:28,509 - root - INFO - Iteration: 36707 (executor.py:309)
+2024-12-16 08:24:28,509 - root - INFO - Time elapsed: 2 days, 20:00:44.576170 (executor.py:310)
+2024-12-16 08:24:28,509 - root - INFO - Average time: 6.67 seconds (executor.py:311)
+2024-12-16 08:24:28,509 - root - INFO - excepts: 1387064 stmts: 9465277 (executor.py:312)
