@@ -75,7 +75,7 @@ class PatchedLauncher(Launcher):
                                        self.close_process), timeout=TIMEOUT)
         await asyncio.wait_for(self.ensureInitialPage(browser), timeout=TIMEOUT)
         return browser
-    
+
     async def close_process(self) -> None:
         logging.info("close_process")
         if not self.chromeClosed:
@@ -101,7 +101,7 @@ async def patched_launch(pipe, options: dict|None = None, **kwargs: Any) -> Brow
     logging.info("global patched_launch")
     global launcher
     launcher = PatchedLauncher(options, **kwargs)# type: ignore
-    return await launcher.patched_launch(pipe) 
+    return await launcher.patched_launch(pipe)
 
 
 
@@ -155,7 +155,7 @@ async def fuzz(
     start = timer()
 
     global dms
-    dms = DeadMansSwitch(180)
+    dms = DeadMansSwitch(180, kill_chrome_processes)
     await dms.start()
 
     ctr: Ctr
@@ -262,7 +262,7 @@ async def execute(browser:Browser, attacker_url:str, victim_url:str)->list[dict]
 
     def on_console(msg: ConsoleMessage) -> None:
         """Copy the message but convert the args to json values if possible."""
-        
+
         msg_copy = {
             "text": msg.text,
             "type": msg.type,
@@ -310,7 +310,7 @@ async def visit_page(browser: Browser, url: str, console_handler: Callable[[Cons
         pages = await browser.pages()
         await click_everything(pages[idx])
         idx += 1
-        
+
 async def click_everything(page: Page) -> None:
     logging.info("click_everything")
     await page.bringToFront()

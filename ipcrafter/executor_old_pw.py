@@ -91,7 +91,7 @@ class BrowserProcess:
 def kill_chrome_processes():
     logging.error("kill_chrome_processes")
     os.system("pkill -9 chrome")
-    # pkill -9 xvfb-run; pkill -9 Xvfb; 
+    # pkill -9 xvfb-run; pkill -9 Xvfb;
 
     current_process = psutil.Process()
     children = current_process.children(recursive=True)
@@ -99,7 +99,7 @@ def kill_chrome_processes():
     psutil.wait_procs(children, timeout=3)
 
 
-    
+
 class BrowserContextWrapper():
     def __init__(self, context: BrowserContext, browser_type: str):
         self.context = context
@@ -166,7 +166,7 @@ async def fuzz(
     start = timer()
 
     global dms
-    dms = DeadMansSwitch(180)
+    dms = DeadMansSwitch(180, kill_chrome_processes)
     await dms.start()
 
     ctr: Ctr
@@ -176,7 +176,7 @@ async def fuzz(
     else:
         ctr = ResetCtr()
 
-    
+
     cov: CoverageCollector|None = CoverageCollector('all') if collect_coverage else None
     while ctr.check():
         try:

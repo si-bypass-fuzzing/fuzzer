@@ -1,0 +1,27 @@
+Fontconfig warning: "/etc/fonts/fonts.conf", line 86: unknown element "blank"
+[0806/111005.243716:ERROR:gpu_process_transport_factory.cc(1007)] Lost UI shared context.
+
+DevTools listening on ws://127.0.0.1:41923/devtools/browser/0b340cca-a272-4bf4-b4b8-518ff8fd7196
+[0806/111005.630272:INFO:CONSOLE(60)] "TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.1:8080/seed (60)
+[0806/111005.766880:INFO:CONSOLE(34)] "Data written successfully", source: http://127.0.0.1:8080/seed (34)
+[0806/111005.862737:INFO:CONSOLE(102)] "TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/seed (102)
+[0806/111005.886957:INFO:CONSOLE(115)] "TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/seed (115)
+[0806/111005.962554:INFO:CONSOLE(36)] "Data written successfully", source: http://127.0.0.2:8080/seed (36)
+[0806/111005.993725:INFO:CONSOLE(76)] "Data written successfully", source: http://127.0.0.2:8080/seed (76)
+[0806/111006.826925:INFO:CONSOLE(36)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.2:8080/input-2_page-1.html (36)
+[0806/111006.842790:INFO:CONSOLE(52)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.2:8080/input-2_page-1.html (52)
+[0806/111006.847297:INFO:CONSOLE(103)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/input-2_page-1.html (103)
+[0806/111006.851714:INFO:CONSOLE(153)] "Failed to load filesystem:http://127.0.0.1:8080/temporary/sanitize: Cross origin requests are only supported for protocol schemes: http, data, chrome, https.", source: http://127.0.0.2:8080/input-2_page-1.html (153)
+[0806/111006.895100:INFO:CONSOLE(324)] "[object DOMException]", source: http://127.0.0.2:8080/input-2_page-1.html (324)
+[0806/111006.911876:INFO:CONSOLE(327)] "[object DOMException]", source: http://127.0.0.2:8080/input-2_page-1.html (327)
+[0806/111006.961473:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer?nonce=9035eb89: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-2_page-1.html (0)
+[0806/111006.965418:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer-cookie?nonce=9035eb89: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-2_page-1.html (0)
+[0806/111006.995316:INFO:CONSOLE(118)] "Uncaught TypeError: f.text is not a function", source: http://127.0.0.2:8080/input-2_page-1.html (118)
+[0806/111007.078319:INFO:CONSOLE(39)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.1:8080/input-2_page-1.html (39)
+[0806/111007.096243:INFO:CONSOLE(55)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.1:8080/input-2_page-1.html (55)
+[0806/111007.100127:INFO:CONSOLE(106)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.1:8080/input-2_page-1.html (106)
+[0806/111007.109885:INFO:CONSOLE(238)] "ReferenceError: globalThis is not defined", source: http://127.0.0.1:8080/input-2_page-1.html (238)
+[0806/111007.126287:INFO:CONSOLE(341)] "[object DOMException]", source: http://127.0.0.1:8080/input-2_page-1.html (341)
+[0806/111007.130142:INFO:CONSOLE(362)] "[object DOMException]", source: http://127.0.0.1:8080/input-2_page-1.html (362)
+[0806/111007.166001:INFO:CONSOLE(150)] "[UXSS] [filesystem-1a92a42f] 127.0.0.1 127.0.0.2", source: http://127.0.0.1:8080/input-2_page-1.html (150)
+[0806/111007.188178:INFO:CONSOLE(121)] "Uncaught TypeError: f.text is not a function", source: http://127.0.0.1:8080/input-2_page-1.html (121)

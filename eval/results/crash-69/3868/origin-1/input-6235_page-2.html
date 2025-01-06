@@ -1,0 +1,336 @@
+<html>
+<head>
+<script>IPCFuzzer.deactivate_renderer_checks();
+IPCFuzzer.activate_leak_sanitizer();</script>
+<script>navigator.serviceWorker.register('/sw.js').then((reg) => {reg.update();}).catch((e) => {});</script>
+<script>try {
+	function check_site_violation(src, exec, token){
+
+let fetch_url = new URL(src);
+let exec_url = new URL(exec);
+if(fetch_url.hostname != exec_url.hostname){
+  console.log('[UXSS] [exec-' + token + '] ' + fetch_url.hostname + ' ' + exec_url.hostname);
+  return true;
+}
+  try {
+    if(IPCFuzzer.check_isolation(src)){
+      console.log('[UXSS] [process-' + token + '] ' + src);
+      return true;
+    }
+  } catch (error) {
+    console.log('Process Isolation Check: ' + error);
+  }
+
+try {
+  let cookie_site = document.cookie.split('; ').find((row) => row.startsWith('sanitize='));
+  if (cookie_site !== null){
+    cookie_site = cookie_site.split('=')[1];
+    if(fetch_url.hostname != cookie_site){
+      console.log('[UXSS] [cookie-' + token + '] ' + fetch_url.hostname + ' ' + cookie_site);
+      return true;
+    }
+  }
+  cookieStore.get('sanitize').then(c => {
+      if(fetch_url.hostname != c.value) {
+        console.log('[UXSS] [cookie-' + token + '] ' + fetch_url.hostname + ' ' + c.value);
+    }
+  }).catch(e => {});
+} catch (error) {
+  console.log('Cookie: ' + error);
+}
+try {
+  let partitioned_cookie_site = document.cookie.split('; ').find((row) => row.startsWith('sanitize_partitioned='));
+  if (partitioned_cookie_site !== null){
+    partitioned_cookie_site = partitioned_cookie_site.split('=')[1];
+    if(fetch_url.hostname != partitioned_cookie_site){
+      console.log('[UXSS] [cookie_partitioned-' + token + '] ' + fetch_url.hostname + ' ' + partitioned_cookie_site);
+      return true;
+    }
+  }
+  cookieStore.get('sanitize_partitioned')
+    .then(c => {
+      if(fetch_url.hostname != c.value) { console.log('[UXSS] [cookie_partitioned-' + token + '] ' + fetch_url.hostname + ' ' + c.value);}
+    }).catch(e => {});
+} catch (error) {
+  console.log('Cookie: ' + error);
+}
+try {
+  let storage_site = localStorage.getItem('sanitize');
+  if(storage_site != null && fetch_url.hostname != storage_site){
+      console.log('[UXSS] [localStorage-' + token + '] ' + fetch_url.hostname + ' ' + storage_site)
+      return true;
+  }
+} catch (error) {
+  console.log('localStorage: ' + error);
+}
+
+  try {
+    let openRequest = indexedDB.open('sanitize', 1);
+
+    openRequest.onsuccess = function(e) {
+      let db = e.target.result;
+      let transaction = db.transaction(['sanitize'], 'readonly');
+      let store = transaction.objectStore('sanitize');
+      let request = store.get('sanitize');
+
+      request.onsuccess = function(e) {
+        let indexeddb_site = e.target.result.value;
+        if (fetch_url.hostname != indexeddb_site) {
+          console.log('[UXSS] [indexeddb-' + token + '] ' + fetch_url.hostname + ' ' + indexeddb_site)
+        }
+        db.close();
+      };
+
+      request.onerror = function(e) {
+        console.log('Error reading data:', e.target.error);
+        db.close();
+      };
+    };
+
+    openRequest.onerror = function(e) {
+      console.log('Error opening database:', e.target.error);
+    };
+} catch (e) {}
+
+  try {
+    async function readOriginPrivateFilesystem(){
+      try {
+        const dirHandle = await navigator.storage.getDirectory();
+        const fileHandle = await dirHandle.getFileHandle('sanitize', {create: false});
+        const file = await fileHandle.getFile();
+        const opfs_site = await file.text();
+        if(opfs_site != '' && fetch_url.hostname != opfs_site) {
+          console.log('[UXSS] [opfs-' + token + '] ' + fetch_url.hostname + ' ' + opfs_site);
+        }
+      } catch (error) {
+        console.log('OPFS: ' + error);
+      }
+    }
+    readOriginPrivateFilesystem();
+  } catch (error) {
+    console.log('OPFS: ' + error);
+  }
+  try {
+    function onFsError(error) {
+      console.log('FileSystem: ' + error)
+    }
+
+    function onFileEntryRead(fe) {
+      try {
+        fe.file( (f) => {
+          f.text()
+            .then( (filesystem_site) => {
+              if(filesystem_site != '' && fetch_url.hostname != filesystem_site) {
+                console.log('[UXSS] [filesystem-' + token + '] ' + fetch_url.hostname + ' ' + filesystem_site);
+              }
+            })
+        });
+      } catch (error) {
+        console.log('FileSystem: ' + error);
+      }
+    }
+
+    function onFsRead(fs) {
+      fs.root.getFile('sanitize', {create: false}, onFileEntryRead, onFsError);
+    }
+    webkitRequestFileSystem(Window.TEMPORARY, 256, onFsRead, onFsError);
+  } catch (error) {
+    console.log('OPFS: ' + error);
+  }
+
+  try {
+    let hosts = ['127.0.0.1', '127.0.0.2'];
+    hosts.forEach(host => {
+      var x = new XMLHttpRequest();
+
+      x.onload = function () {
+          if (this.readyState == 4 && this.status == 200) {
+              let filesystem_site = x.responseText;
+              if (filesystem_site != '' && fetch_url.hostname != filesystem_site) {
+                  console.log('[UXSS] [filesystem-' + token + '] ' + fetch_url.hostname + ' ' + filesystem_site);
+              }
+          }
+      };
+
+      x.open('GET', 'filesystem:http://' + host + ':8080/temporary/sanitize', true);
+      x.send();
+    });
+  } catch (error) {
+}
+
+  let hosts = ['127.0.0.1', '127.0.0.2'];
+  hosts.forEach(host => {
+    let url = 'http://' + host + ':8080/sanitizer?nonce=' + token;
+    try {
+      fetch(url).then((response) => {
+          if (response.ok()) {
+            let text = response.text();
+            if (text.includes('127.0.0.1')) {
+              console.log('[UXSS] [fetch-' + token + '] ' + host + ' ' + text);
+            }
+          }
+      }).catch(error => {});
+    } catch (error) {}
+
+    url = 'http://' + host + ':8080/sanitizer-cookie?nonce=' + token;
+    try {
+      fetch(url, {
+        credentials: 'include',
+        mode: 'cors',
+      }).then((response) => {
+          if (response.ok()) {
+            let text = response.text();
+            if (text.includes('127.0.0.1')) {
+              console.log('[UXSS] [fetch-credentialed-' + token + '] ' + host + ' ' + text);
+            }
+          }
+      }).catch(error => {});
+    } catch (error) {}
+  });
+  return false;
+}
+} catch (e) {console.log(e)}
+try {
+	function check_iframe_site_violation(src, frame, token){
+  try {
+    let fetch_url = new URL(src);
+    let cookie_site = frame.contentWindow.document.cookie.split('; ').find((row) => row.startsWith('sanitize='))
+    if (cookie_site !== null) {
+      cookie_site = cookie_site.split('=')[1];
+      if(cookie_site != null && fetch_url.hostname != cookie_site){
+        console.log('[UXSS] [iframe-cookie-' + token + '] ' + fetch_url.hostname + ' ' + cookie_site);
+      }
+    }
+  } catch (error) {
+    console.log('Iframe Cookie: ' + error);
+  }
+}
+} catch (e) {console.log(e)}
+try {
+	function check_window_site_violation(src, win, token){
+  try {
+    let fetch_url = new URL(src);
+    let cookie_site = win.document.cookie.split('; ').find((row) => row.startsWith('sanitize='));
+    if (cookie_site !== null) {
+      cookie_site = cookie_site.split('=')[1];
+      if(cookie_site != null && fetch_url.hostname != cookie_site){
+        console.log('[UXSS] [win-cookie-' + token + '] ' + fetch_url.hostname + ' ' + cookie_site);
+      }
+    }
+  } catch (error) {
+    console.log('Window Cookie: ' + error);
+  }
+}
+} catch (e) {console.log(e)}
+</script>
+</head>
+<body>
+<h1>8f62adfe</h1><p>foo</p>
+<script>
+async function foo() {
+	try {
+		check_site_violation('http://127.0.0.1:8080', location.origin, '23be54b5');
+
+	} catch (e) {console.log(e)}
+	try {
+		IPCFuzzer.mutate_origin('http://127.0.0.1:8080/input-6235_page-1.html#7b22bd8d');
+	} catch (e) {console.log(e)}
+	try {
+		var var0 = document.createElement('link');
+	} catch (e) {console.log(e)}
+	try {
+		document.head.appendChild(var0);
+	} catch (e) {console.log(e)}
+	try {
+		var var1 = await var0.replaceWith(window.name);
+	} catch (e) {console.log(e)}
+	try {
+		var var2 = document.createElement('form');
+	} catch (e) {console.log(e)}
+	try {
+		document.body.appendChild(var2);
+	} catch (e) {console.log(e)}
+async function func0(event) {
+		try {
+			check_site_violation('http://127.0.0.1:8080', location.origin, '77e46752');
+
+		} catch (e) {console.log(e)}
+
+		try {
+			IPCFuzzer.mutate_schemeful_site_replace_host('http://127.0.0.1:8080/input-6235_page-1.html');
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var0 = await var2.click();
+		} catch (e) {console.log(e)}
+
+		try {
+			IPCFuzzer.mutate_origin_replace_host('http://127.0.0.2:8080/input-6235_page-1.html');
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var1 = document.createElement('iframe');
+		} catch (e) {console.log(e)}
+
+		try {
+			document.body.appendChild(func0_var1);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var2 = 'http://127.0.0.1:8080/input-6235_page-2.html#53691bd1';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var3 = await func0_var1.querySelectorAll(func0_var2);
+		} catch (e) {console.log(e)}
+
+		try {
+			var2.ondragexit = eval;
+		} catch (e) {console.log(e)}
+
+		try {
+			IPCFuzzer.mutate_schemeful_site_replace_host('http://127.0.0.2:8080/input-6235_page-1.html');
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var4 = document.createElement('optgroup');
+		} catch (e) {console.log(e)}
+
+		try {
+			document.body.appendChild(func0_var4);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var5 = 'http://127.0.0.1:8080/input-6235_page-2.html#dff1129f';
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var6 = await func0_var4.getAttribute(func0_var5);
+		} catch (e) {console.log(e)}
+
+		try {
+			var func0_var7 = await event.stopImmediatePropagation();
+		} catch (e) {console.log(e)}
+
+		return '';
+	}
+	try {
+		var2.onclick = func0;
+	} catch (e) {console.log(e)}
+	try {
+		var0.oncanplaythrough = func0;
+	} catch (e) {console.log(e)}
+	try {
+		IPCFuzzer.mutate_schemeful_site('http://127.0.0.1:8080/input-6235_page-1.html#254fb1e2');
+	} catch (e) {console.log(e)}
+	try {
+		IPCFuzzer.mutate_site_for_cookies('http://127.0.0.1:8080/input-6235_page-2.html#fd5d46cd');
+	} catch (e) {console.log(e)}
+	try {
+		IPCFuzzer.mutate_schemeful_site_replace_host('http://127.0.0.1:8080/input-6235_page-1.html');
+	} catch (e) {console.log(e)}
+}
+foo();
+</script>
+</body>
+</html>

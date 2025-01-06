@@ -1,0 +1,4 @@
+Fontconfig warning: "/etc/fonts/fonts.conf", line 86: unknown element "blank"
+[0806/092538.748254:ERROR:gpu_process_transport_factory.cc(1007)] Lost UI shared context.
+
+DevTools listening on ws://127.0.0.1:44441/devtools/browser/abae769d-c760-47a5-871d-501c7b24ad53

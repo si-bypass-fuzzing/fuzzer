@@ -1,6 +1,7 @@
 import asyncio
 import time
 import logging
+from typing import Callable
 
 class WebErrorHandler:
     THRESHOLD = 100
@@ -73,7 +74,7 @@ class MaxCtr(Ctr):
 
     def check(self) -> bool:
         return self.i < self.max
-    
+
 class ResetCtr(Ctr):
     def __init__(self, interval:int = 100):
         super().__init__()
@@ -90,11 +91,12 @@ class DMSException(Exception):
     pass
 
 class DeadMansSwitch:
-    def __init__(self, timeout):
+    def __init__(self, timeout, kill: Callable[[], None] | None = None):
         self.timeout = timeout
         self.last_signal_time = time.time()
         self.loop = asyncio.get_event_loop()
         self.monitor_task = None
+        self.kill = kill
 
     async def start(self):
         self.monitor_task = asyncio.ensure_future(self._monitor())
@@ -109,7 +111,7 @@ class DeadMansSwitch:
                 await self._handle_timeout()
 
     async def _handle_timeout(self):
-        # kill_chrome_processes()
+        if self.kill:
+            self.kill()
         logging.error("DMS")
         raise DMSException("Dead man's switch triggered: loop has not sent a signal for the specified timeout period.")
-

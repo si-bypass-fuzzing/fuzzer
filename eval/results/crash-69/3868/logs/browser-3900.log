@@ -1,0 +1,568 @@
+Fontconfig warning: "/etc/fonts/fonts.conf", line 86: unknown element "blank"
+[0806/075856.307660:ERROR:gpu_process_transport_factory.cc(1007)] Lost UI shared context.
+
+DevTools listening on ws://127.0.0.1:47097/devtools/browser/c1661f9f-9623-4fd2-ac94-03c86683f579
+[0806/075856.650915:INFO:CONSOLE(60)] "TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.1:8080/seed (60)
+[0806/075856.731513:INFO:CONSOLE(34)] "Data written successfully", source: http://127.0.0.1:8080/seed (34)
+[0806/075856.849686:INFO:CONSOLE(102)] "TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/seed (102)
+[0806/075856.870004:INFO:CONSOLE(115)] "TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/seed (115)
+[0806/075856.894218:INFO:CONSOLE(36)] "Data written successfully", source: http://127.0.0.2:8080/seed (36)
+[0806/075856.905803:INFO:CONSOLE(76)] "Data written successfully", source: http://127.0.0.2:8080/seed (76)
+[0806/075857.576682:INFO:CONSOLE(36)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.2:8080/input-3862_page-1.html (36)
+[0806/075857.586989:INFO:CONSOLE(52)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.2:8080/input-3862_page-1.html (52)
+[0806/075857.591106:INFO:CONSOLE(103)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/input-3862_page-1.html (103)
+[0806/075857.596112:INFO:CONSOLE(153)] "Failed to load filesystem:http://127.0.0.1:8080/temporary/sanitize: Cross origin requests are only supported for protocol schemes: http, data, chrome, https.", source: http://127.0.0.2:8080/input-3862_page-1.html (153)
+[0806/075857.603755:INFO:CONSOLE(274)] "ReferenceError: globalThis is not defined", source: http://127.0.0.2:8080/input-3862_page-1.html (274)
+[0806/075857.688110:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer?nonce=635f3960: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3862_page-1.html (0)
+[0806/075857.691403:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer-cookie?nonce=635f3960: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3862_page-1.html (0)
+[0806/075857.706335:INFO:CONSOLE(112)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.2:8080/input-3862_page-1.html (112)
+[0806/075857.800484:INFO:CONSOLE(39)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.1:8080/input-3862_page-1.html (39)
+[0806/075857.817337:INFO:CONSOLE(55)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.1:8080/input-3862_page-1.html (55)
+[0806/075857.823128:INFO:CONSOLE(106)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.1:8080/input-3862_page-1.html (106)
+[0806/075857.899056:INFO:CONSOLE(115)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.1:8080/input-3862_page-1.html (115)
+[0806/075858.861043:INFO:CONSOLE(36)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.2:8080/input-3863_page-1.html (36)
+[0806/075858.870387:INFO:CONSOLE(52)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.2:8080/input-3863_page-1.html (52)
+[0806/075858.874019:INFO:CONSOLE(103)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/input-3863_page-1.html (103)
+[0806/075858.877330:INFO:CONSOLE(153)] "Failed to load filesystem:http://127.0.0.1:8080/temporary/sanitize: Cross origin requests are only supported for protocol schemes: http, data, chrome, https.", source: http://127.0.0.2:8080/input-3863_page-1.html (153)
+[0806/075858.885751:INFO:CONSOLE(252)] "[object DOMException]", source: http://127.0.0.2:8080/input-3863_page-1.html (252)
+[0806/075858.900542:INFO:CONSOLE(261)] "[object DOMException]", source: http://127.0.0.2:8080/input-3863_page-1.html (261)
+[0806/075858.938833:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer?nonce=8ce7e3d7: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3863_page-1.html (0)
+[0806/075858.943684:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer-cookie?nonce=8ce7e3d7: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3863_page-1.html (0)
+[0806/075858.964495:INFO:CONSOLE(112)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.2:8080/input-3863_page-1.html (112)
+[0806/075859.058014:INFO:CONSOLE(39)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.1:8080/input-3863_page-1.html (39)
+[0806/075859.072286:INFO:CONSOLE(55)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.1:8080/input-3863_page-1.html (55)
+[0806/075859.075561:INFO:CONSOLE(106)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.1:8080/input-3863_page-1.html (106)
+[0806/075859.089118:ERROR:bad_message.cc(25)] Terminating renderer for bad IPC message, reason 139
+[0806/075859.093214:INFO:CONSOLE(254)] "<html>
+<head>
+<script>IPCFuzzer.deactivate_renderer_checks();
+IPCFuzzer.activate_leak_sanitizer();</script>
+<script>navigator.serviceWorker.register("/sw.js").then((reg) => {reg.update();}).catch((e) => {});</script>
+<script>try {
+	function check_site_violation(src, exec, token){
+
+let fetch_url = new URL(src);
+let exec_url = new URL(exec);
+if(fetch_url.hostname != exec_url.hostname){
+  console.log("[UXSS] [exec-" + token + "] " + fetch_url.hostname + " " + exec_url.hostname);
+  return true;
+}
+  try {
+    if(IPCFuzzer.check_isolation(src)){
+      console.log("[UXSS] [process-" + token + "] " + src);
+      return true;
+    }
+  } catch (error) {
+    console.log("Process Isolation Check: " + error);
+  }
+
+try {
+  let cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize="));
+  if (cookie_site !== null){
+    cookie_site = cookie_site.split("=")[1];
+    if(fetch_url.hostname != cookie_site){
+      console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);
+      return true;
+    }
+  }
+  cookieStore.get("sanitize").then(c => {
+      if(fetch_url.hostname != c.value) {
+        console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + c.value);
+    }
+  }).catch(e => {});
+} catch (error) {
+  console.log("Cookie: " + error);
+}
+try {
+  let partitioned_cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize_partitioned="));
+  if (partitioned_cookie_site !== null){
+    partitioned_cookie_site = partitioned_cookie_site.split("=")[1];
+    if(fetch_url.hostname != partitioned_cookie_site){
+      console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + partitioned_cookie_site);
+      return true;
+    }
+  }
+  cookieStore.get("sanitize_partitioned")
+    .then(c => {
+      if(fetch_url.hostname != c.value) { console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + c.value);}
+    }).catch(e => {});
+} catch (error) {
+  console.log("Cookie: " + error);
+}
+try {
+  let storage_site = localStorage.getItem("sanitize");
+  if(storage_site != null && fetch_url.hostname != storage_site){
+      console.log("[UXSS] [localStorage-" + token + "] " + fetch_url.hostname + " " + storage_site)
+      return true;
+  }
+} catch (error) {
+  console.log("localStorage: " + error);
+}
+
+  try {
+    let openRequest = indexedDB.open("sanitize", 1);
+
+    openRequest.onsuccess = function(e) {
+      let db = e.target.result;
+      let transaction = db.transaction(["sanitize"], "readonly");
+      let store = transaction.objectStore("sanitize");
+      let request = store.get("sanitize");
+
+      request.onsuccess = function(e) {
+        let indexeddb_site = e.target.result.value;
+        if (fetch_url.hostname != indexeddb_site) {
+          console.log("[UXSS] [indexeddb-" + token + "] " + fetch_url.hostname + " " + indexeddb_site)
+        }
+        db.close();
+      };
+
+      request.onerror = function(e) {
+        console.log("Error reading data:", e.target.error);
+        db.close();
+      };
+    };
+
+    openRequest.onerror = function(e) {
+      console.log("Error opening database:", e.target.error);
+    };
+} catch (e) {}
+
+  try {
+    async function readOriginPrivateFilesystem(){
+      try {
+        const dirHandle = await navigator.storage.getDirectory();
+        const fileHandle = await dirHandle.getFileHandle("sanitize", {create: false});
+        const file = await fileHandle.getFile();
+        const opfs_site = await file.text();
+        if(opfs_site != "" && fetch_url.hostname != opfs_site) {
+          console.log("[UXSS] [opfs-" + token + "] " + fetch_url.hostname + " " + opfs_site);
+        }
+      } catch (error) {
+        console.log("OPFS: " + error);
+      }
+    }
+    readOriginPrivateFilesystem();
+  } catch (error) {
+    console.log("OPFS: " + error);
+  }
+  try {
+    function onFsError(error) {
+      console.log("FileSystem: " + error)
+    }
+
+    function onFileEntryRead(fe) {
+      try {
+        fe.file( (f) => {
+          f.text()
+            .then( (filesystem_site) => {
+              if(filesystem_site != "" && fetch_url.hostname != filesystem_site) {
+                console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);
+              }
+            })
+        });
+      } catch (error) {
+        console.log("FileSystem: " + error);
+      }
+    }
+
+    function onFsRead(fs) {
+      fs.root.getFile("sanitize", {create: false}, onFileEntryRead, onFsError);
+    }
+    webkitRequestFileSystem(Window.TEMPORARY, 256, onFsRead, onFsError);
+  } catch (error) {
+    console.log("OPFS: " + error);
+  }
+
+  try {
+    let hosts = ["127.0.0.1", "127.0.0.2"];
+    hosts.forEach(host => {
+      var x = new XMLHttpRequest();
+
+      x.onload = function () {
+          if (this.readyState == 4 && this.status == 200) {
+              let filesystem_site = x.responseText;
+              if (filesystem_site != "" && fetch_url.hostname != filesystem_site) {
+                  console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);
+              }
+          }
+      };
+
+      x.open("GET", "filesystem:http://" + host + ":8080/temporary/sanitize", true);
+      x.send();
+    });
+  } catch (error) {
+}
+
+  let hosts = ["127.0.0.1", "127.0.0.2"];
+  hosts.forEach(host => {
+    let url = "http://" + host + ":8080/sanitizer?nonce=" + token;
+    try {
+      fetch(url).then((response) => {
+          if (response.ok()) {
+            let text = response.text();
+            if (text.includes("127.0.0.1")) {
+              console.log("[UXSS] [fetch-" + token + "] " + host + " " + text);
+            }
+          }
+      }).catch(error => {});
+    } catch (error) {}
+
+    url = "http://" + host + ":8080/sanitizer-cookie?nonce=" + token;
+    try {
+      fetch(url, {
+        credentials: "include",
+        mode: "cors",
+      }).then((response) => {
+          if (response.ok()) {
+            let text = response.text();
+            if (text.includes("127.0.0.1")) {
+              console.log("[UXSS] [fetch-credentialed-" + token + "] " + host + " " + text);
+            }
+          }
+      }).catch(error => {});
+    } catch (error) {}
+  });
+  return false;
+}
+} catch (e) {console.log(e)}
+try {
+	function check_iframe_site_violation(src, frame, token){
+  try {
+    let fetch_url = new URL(src);
+    let cookie_site = frame.contentWindow.document.cookie.split("; ").find((row) => row.startsWith("sanitize="))
+    if (cookie_site !== null) {
+      cookie_site = cookie_site.split("=")[1];
+      if(cookie_site != null && fetch_url.hostname != cookie_site){
+        console.log("[UXSS] [iframe-cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);
+      }
+    }
+  } catch (error) {
+    console.log("Iframe Cookie: " + error);
+  }
+}
+} catch (e) {console.log(e)}
+try {
+	function check_window_site_violation(src, win, token){
+  try {
+    let fetch_url = new URL(src);
+    let cookie_site = win.document.cookie.split("; ").find((row) => row.startsWith("sanitize="));
+    if (cookie_site !== null) {
+      cookie_site = cookie_site.split("=")[1];
+      if(cookie_site != null && fetch_url.hostname != cookie_site){
+        console.log("[UXSS] [win-cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);
+      }
+    }
+  } catch (error) {
+    console.log("Window Cookie: " + error);
+  }
+}
+} catch (e) {console.log(e)}
+</script>
+</head>
+<body>
+<h1>6f025a57</h1><p>foo</p>
+<script>
+async function foo() {
+	try {
+		function check_site_violation(src, exec, token){
+
+let fetch_url = new URL(src);
+let exec_url = new URL(exec);
+if(fetch_url.hostname != exec_url.hostname){
+  console.log("[UXSS] [exec-" + token + "] " + fetch_url.hostname + " " + exec_url.hostname);
+  return true;
+}
+  try {
+    if(IPCFuzzer.check_isolation(src)){
+      console.log("[UXSS] [process-" + token + "] " + src);
+      return true;
+    }
+  } catch (error) {
+    console.log("Process Isolation Check: " + error);
+  }
+
+try {
+  let cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize="));
+  if (cookie_site !== null){
+    cookie_site = cookie_site.split("=")[1];
+    if(fetch_url.hostname != cookie_site){
+      console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);
+      return true;
+    }
+  }
+  cookieStore.get("sanitize").then(c => {
+      if(fetch_url.hostname != c.value) {
+        console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + c.value);
+    }
+  }).catch(e => {});
+} catch (error) {
+  console.log("Cookie: " + error);
+}
+try {
+  let partitioned_cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize_partitioned="));
+  if (partitioned_cookie_site !== null){
+    partitioned_cookie_site = partitioned_cookie_site.split("=")[1];
+    if(fetch_url.hostname != partitioned_cookie_site){
+      console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + partitioned_cookie_site);
+      return true;
+    }
+  }
+  cookieStore.get("sanitize_partitioned")
+    .then(c => {
+      if(fetch_url.hostname != c.value) { console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + c.value);}
+    }).catch(e => {});
+} catch (error) {
+  console.log("Cookie: " + error);
+}
+try {
+  let storage_site = localStorage.getItem("sanitize");
+  if(storage_site != null && fetch_url.hostname != storage_site){
+      console.log("[UXSS] [localStorage-" + token + "] " + fetch_url.hostname + " " + storage_site)
+      return true;
+  }
+} catch (error) {
+  console.log("localStorage: " + error);
+}
+
+  try {
+    let openRequest = indexedDB.open("sanitize", 1);
+
+    openRequest.onsuccess = function(e) {
+      let db = e.target.result;
+      let transaction = db.transaction(["sanitize"], "readonly");
+      let store = transaction.objectStore("sanitize");
+      let request = store.get("sanitize");
+
+      request.onsuccess = function(e) {
+        let indexeddb_site = e.target.result.value;
+        if (fetch_url.hostname != indexeddb_site) {
+          console.log("[UXSS] [indexeddb-" + token + "] " + fetch_url.hostname + " " + indexeddb_site)
+        }
+        db.close();
+      };
+
+      request.onerror = function(e) {
+        console.log("Error reading data:", e.target.error);
+        db.close();
+      };
+    };
+
+    openRequest.onerror = function(e) {
+      console.log("Error opening database:", e.target.error);
+    };
+} catch (e) {}
+
+  try {
+    async function readOriginPrivateFilesystem(){
+      try {
+        const dirHandle = await navigator.storage.getDirectory();
+        const fileHandle = await dirHandle.getFileHandle("sanitize", {create: false});
+        const file = await fileHandle.getFile();
+        const opfs_site = await file.text();
+        if(opfs_site != "" && fetch_url.hostname != opfs_site) {
+          console.log("[UXSS] [opfs-" + token + "] " + fetch_url.hostname + " " + opfs_site);
+        }
+      } catch (error) {
+        console.log("OPFS: " + error);
+      }
+    }
+    readOriginPrivateFilesystem();
+  } catch (error) {
+    console.log("OPFS: " + error);
+  }
+  try {
+    function onFsError(error) {
+      console.log("FileSystem: " + error)
+    }
+
+    function onFileEntryRead(fe) {
+      try {
+        fe.file( (f) => {
+          f.text()
+            .then( (filesystem_site) => {
+              if(filesystem_site != "" && fetch_url.hostname != filesystem_site) {
+                console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);
+              }
+            })
+        });
+      } catch (error) {
+        console.log("FileSystem: " + error);
+      }
+    }
+
+    function onFsRead(fs) {
+      fs.root.getFile("sanitize", {create: false}, onFileEntryRead, onFsError);
+    }
+    webkitRequestFileSystem(Window.TEMPORARY, 256, onFsRead, onFsError);
+  } catch (error) {
+    console.log("OPFS: " + error);
+  }
+
+  try {
+    let hosts = ["127.0.0.1", "127.0.0.2"];
+    hosts.forEach(host => {
+      var x = new XMLHttpRequest();
+
+      x.onload = function () {
+          if (this.readyState == 4 && this.status == 200) {
+              let filesystem_site = x.responseText;
+              if (filesystem_site != "" && fetch_url.hostname != filesystem_site) {
+                  console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);
+              }
+          }
+      };
+
+      x.open("GET", "filesystem:http://" + host + ":8080/temporary/sanitize", true);
+      x.send();
+    });
+  } catch (error) {
+}
+
+  let hosts = ["127.0.0.1", "127.0.0.2"];
+  hosts.forEach(host => {
+    let url = "http://" + host + ":8080/sanitizer?nonce=" + token;
+    try {
+      fetch(url).then((response) => {
+          if (response.ok()) {
+            let text = response.text();
+            if (text.includes("127.0.0.1")) {
+              console.log("[UXSS] [fetch-" + token + "] " + host + " " + text);
+            }
+          }
+      }).catch(error => {});
+    } catch (error) {}
+
+    url = "http://" + host + ":8080/sanitizer-cookie?nonce=" + token;
+    try {
+      fetch(url, {
+        credentials: "include",
+        mode: "cors",
+      }).then((response) => {
+          if (response.ok()) {
+            let text = response.text();
+            if (text.includes("127.0.0.1")) {
+              console.log("[UXSS] [fetch-credentialed-" + token + "] " + host + " " + text);
+            }
+          }
+      }).catch(error => {});
+    } catch (error) {}
+  });
+  return false;
+}
+	} catch (e) {console.log(e)}
+	try {
+		check_site_violation("http://127.0.0.1:8080", location.origin, "f0c4c927");
+
+	} catch (e) {console.log(e)}
+}
+foo();
+</script>
+</body>
+</html>", source: http://127.0.0.1:8080/input-3863_page-1.html (254)
+[0806/075859.143295:INFO:CONSOLE(115)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.1:8080/input-3863_page-1.html (115)
+[0806/075900.554126:INFO:CONSOLE(36)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.2:8080/input-3864_page-1.html (36)
+[0806/075900.568201:INFO:CONSOLE(52)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.2:8080/input-3864_page-1.html (52)
+[0806/075900.572484:INFO:CONSOLE(103)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/input-3864_page-1.html (103)
+[0806/075900.575710:INFO:CONSOLE(153)] "Failed to load filesystem:http://127.0.0.1:8080/temporary/sanitize: Cross origin requests are only supported for protocol schemes: http, data, chrome, https.", source: http://127.0.0.2:8080/input-3864_page-1.html (153)
+[0806/075900.597294:INFO:CONSOLE(711)] "ReferenceError: globalThis is not defined", source: http://127.0.0.2:8080/input-3864_page-1.html (711)
+[0806/075900.609366:INFO:CONSOLE(715)] "ReferenceError: globalThis is not defined", source: http://127.0.0.2:8080/input-3864_page-1.html (715)
+[0806/075900.610978:INFO:CONSOLE(727)] "[object DOMException]", source: http://127.0.0.2:8080/input-3864_page-1.html (727)
+[0806/075900.614452:INFO:CONSOLE(736)] "[object DOMException]", source: http://127.0.0.2:8080/input-3864_page-1.html (736)
+[0806/075900.649115:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer?nonce=2ef41cf5: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3864_page-1.html (0)
+[0806/075900.650682:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer-cookie?nonce=2ef41cf5: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3864_page-1.html (0)
+[0806/075900.671080:INFO:CONSOLE(112)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.2:8080/input-3864_page-1.html (112)
+[0806/075900.777674:INFO:CONSOLE(39)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.1:8080/input-3864_page-1.html (39)
+[0806/075900.795402:INFO:CONSOLE(55)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.1:8080/input-3864_page-1.html (55)
+[0806/075900.798939:INFO:CONSOLE(106)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.1:8080/input-3864_page-1.html (106)
+[0806/075900.808592:INFO:CONSOLE(243)] "TypeError: IPCFuzzer.mutate_origin is not a function", source: http://127.0.0.1:8080/input-3864_page-1.html (243)
+[0806/075900.885031:INFO:CONSOLE(115)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.1:8080/input-3864_page-1.html (115)
+[0806/075901.607210:INFO:CONSOLE(36)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.2:8080/input-3865_page-1.html (36)
+[0806/075901.617828:INFO:CONSOLE(52)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.2:8080/input-3865_page-1.html (52)
+[0806/075901.621530:INFO:CONSOLE(103)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/input-3865_page-1.html (103)
+[0806/075901.624536:INFO:CONSOLE(153)] "Failed to load filesystem:http://127.0.0.1:8080/temporary/sanitize: Cross origin requests are only supported for protocol schemes: http, data, chrome, https.", source: http://127.0.0.2:8080/input-3865_page-1.html (153)
+[0806/075901.649222:INFO:CONSOLE(242)] "Failed to execute 'requestFullscreen' on 'Element': API can only be initiated by a user gesture.", source: http://127.0.0.2:8080/input-3865_page-1.html (242)
+[0806/075901.649376:INFO:CONSOLE(247)] "ReferenceError: globalThis is not defined", source: http://127.0.0.2:8080/input-3865_page-1.html (247)
+[0806/075901.663568:INFO:CONSOLE(256)] "ReferenceError: func0 is not defined", source: http://127.0.0.2:8080/input-3865_page-1.html (256)
+[0806/075901.697424:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer?nonce=562e7bc7: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3865_page-1.html (0)
+[0806/075901.714977:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer-cookie?nonce=562e7bc7: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3865_page-1.html (0)
+[0806/075901.724203:INFO:CONSOLE(112)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.2:8080/input-3865_page-1.html (112)
+[0806/075901.775707:INFO:CONSOLE(36)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.2:8080/input-3865_page-1.html (36)
+[0806/075901.778008:INFO:CONSOLE(52)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.2:8080/input-3865_page-1.html (52)
+[0806/075901.778405:INFO:CONSOLE(103)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/input-3865_page-1.html (103)
+[0806/075901.780124:INFO:CONSOLE(153)] "Failed to load filesystem:http://127.0.0.1:8080/temporary/sanitize: Cross origin requests are only supported for protocol schemes: http, data, chrome, https.", source: http://127.0.0.2:8080/input-3865_page-1.html (153)
+[0806/075901.807003:INFO:CONSOLE(242)] "Failed to execute 'requestFullscreen' on 'Element': API can only be initiated by a user gesture.", source: http://127.0.0.2:8080/input-3865_page-1.html (242)
+[0806/075901.810774:INFO:CONSOLE(247)] "ReferenceError: globalThis is not defined", source: http://127.0.0.2:8080/input-3865_page-1.html (247)
+[0806/075901.811134:INFO:CONSOLE(256)] "ReferenceError: func0 is not defined", source: http://127.0.0.2:8080/input-3865_page-1.html (256)
+[0806/075901.827966:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer?nonce=562e7bc7: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3865_page-1.html (0)
+[0806/075901.832575:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer-cookie?nonce=562e7bc7: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3865_page-1.html (0)
+[0806/075901.837944:INFO:CONSOLE(112)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.2:8080/input-3865_page-1.html (112)
+[0806/075901.856595:INFO:CONSOLE(39)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.1:8080/input-3865_page-1.html (39)
+[0806/075901.869553:INFO:CONSOLE(36)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.2:8080/input-3865_page-1.html (36)
+[0806/075901.871224:INFO:CONSOLE(52)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.2:8080/input-3865_page-1.html (52)
+[0806/075901.872821:INFO:CONSOLE(55)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.1:8080/input-3865_page-1.html (55)
+[0806/075901.873990:INFO:CONSOLE(103)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/input-3865_page-1.html (103)
+[0806/075901.875216:INFO:CONSOLE(153)] "Failed to load filesystem:http://127.0.0.1:8080/temporary/sanitize: Cross origin requests are only supported for protocol schemes: http, data, chrome, https.", source: http://127.0.0.2:8080/input-3865_page-1.html (153)
+[0806/075901.877449:INFO:CONSOLE(106)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.1:8080/input-3865_page-1.html (106)
+[0806/075901.896014:INFO:CONSOLE(270)] "TypeError: IPCFuzzer.mutate_origin is not a function", source: http://127.0.0.1:8080/input-3865_page-1.html (270)
+[0806/075901.901532:INFO:CONSOLE(242)] "Failed to execute 'requestFullscreen' on 'Element': API can only be initiated by a user gesture.", source: http://127.0.0.2:8080/input-3865_page-1.html (242)
+[0806/075901.901621:INFO:CONSOLE(247)] "ReferenceError: globalThis is not defined", source: http://127.0.0.2:8080/input-3865_page-1.html (247)
+[0806/075901.901881:INFO:CONSOLE(256)] "ReferenceError: func0 is not defined", source: http://127.0.0.2:8080/input-3865_page-1.html (256)
+[0806/075901.910841:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer?nonce=562e7bc7: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3865_page-1.html (0)
+[0806/075901.919573:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer-cookie?nonce=562e7bc7: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3865_page-1.html (0)
+[0806/075901.940779:INFO:CONSOLE(112)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.2:8080/input-3865_page-1.html (112)
+[0806/075901.974852:INFO:CONSOLE(115)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.1:8080/input-3865_page-1.html (115)
+[0806/075901.980705:INFO:CONSOLE(36)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.2:8080/input-3865_page-1.html (36)
+[0806/075901.981226:INFO:CONSOLE(52)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.2:8080/input-3865_page-1.html (52)
+[0806/075901.982918:INFO:CONSOLE(103)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/input-3865_page-1.html (103)
+[0806/075901.983933:INFO:CONSOLE(153)] "Failed to load filesystem:http://127.0.0.1:8080/temporary/sanitize: Cross origin requests are only supported for protocol schemes: http, data, chrome, https.", source: http://127.0.0.2:8080/input-3865_page-1.html (153)
+[0806/075902.008182:INFO:CONSOLE(242)] "Failed to execute 'requestFullscreen' on 'Element': API can only be initiated by a user gesture.", source: http://127.0.0.2:8080/input-3865_page-1.html (242)
+[0806/075902.008448:INFO:CONSOLE(247)] "ReferenceError: globalThis is not defined", source: http://127.0.0.2:8080/input-3865_page-1.html (247)
+[0806/075902.021227:INFO:CONSOLE(256)] "ReferenceError: func0 is not defined", source: http://127.0.0.2:8080/input-3865_page-1.html (256)
+[0806/075902.031003:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer?nonce=562e7bc7: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3865_page-1.html (0)
+[0806/075902.036138:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer-cookie?nonce=562e7bc7: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3865_page-1.html (0)
+[0806/075902.049233:INFO:CONSOLE(112)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.2:8080/input-3865_page-1.html (112)
+[0806/075902.075788:INFO:CONSOLE(36)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.2:8080/input-3865_page-1.html (36)
+[0806/075902.077161:INFO:CONSOLE(52)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.2:8080/input-3865_page-1.html (52)
+[0806/075902.080131:INFO:CONSOLE(103)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/input-3865_page-1.html (103)
+[0806/075902.085052:INFO:CONSOLE(153)] "Failed to load filesystem:http://127.0.0.1:8080/temporary/sanitize: Cross origin requests are only supported for protocol schemes: http, data, chrome, https.", source: http://127.0.0.2:8080/input-3865_page-1.html (153)
+[0806/075902.122051:INFO:CONSOLE(242)] "Failed to execute 'requestFullscreen' on 'Element': API can only be initiated by a user gesture.", source: http://127.0.0.2:8080/input-3865_page-1.html (242)
+[0806/075902.122234:INFO:CONSOLE(247)] "ReferenceError: globalThis is not defined", source: http://127.0.0.2:8080/input-3865_page-1.html (247)
+[0806/075902.833123:INFO:CONSOLE(36)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.2:8080/input-3866_page-1.html (36)
+[0806/075902.841969:INFO:CONSOLE(52)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.2:8080/input-3866_page-1.html (52)
+[0806/075902.845254:INFO:CONSOLE(103)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/input-3866_page-1.html (103)
+[0806/075902.848379:INFO:CONSOLE(153)] "Failed to load filesystem:http://127.0.0.1:8080/temporary/sanitize: Cross origin requests are only supported for protocol schemes: http, data, chrome, https.", source: http://127.0.0.2:8080/input-3866_page-1.html (153)
+[0806/075902.853943:INFO:CONSOLE(235)] "ReferenceError: globalThis is not defined", source: http://127.0.0.2:8080/input-3866_page-1.html (235)
+[0806/075902.913961:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer?nonce=a8aaf613: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3866_page-1.html (0)
+[0806/075902.915997:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer-cookie?nonce=a8aaf613: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3866_page-1.html (0)
+[0806/075902.931405:INFO:CONSOLE(112)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.2:8080/input-3866_page-1.html (112)
+[0806/075903.049159:INFO:CONSOLE(39)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.1:8080/input-3866_page-1.html (39)
+[0806/075903.060838:INFO:CONSOLE(55)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.1:8080/input-3866_page-1.html (55)
+[0806/075903.064844:INFO:CONSOLE(106)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.1:8080/input-3866_page-1.html (106)
+[0806/075903.126157:INFO:CONSOLE(115)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.1:8080/input-3866_page-1.html (115)
+[0806/075904.005175:INFO:CONSOLE(36)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.2:8080/input-3867_page-1.html (36)
+[0806/075904.015826:INFO:CONSOLE(52)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.2:8080/input-3867_page-1.html (52)
+[0806/075904.019333:INFO:CONSOLE(103)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/input-3867_page-1.html (103)
+[0806/075904.022339:INFO:CONSOLE(153)] "Failed to load filesystem:http://127.0.0.1:8080/temporary/sanitize: Cross origin requests are only supported for protocol schemes: http, data, chrome, https.", source: http://127.0.0.2:8080/input-3867_page-1.html (153)
+[0806/075904.065030:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer?nonce=98d43306: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3867_page-1.html (0)
+[0806/075904.065967:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer-cookie?nonce=98d43306: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3867_page-1.html (0)
+[0806/075904.075292:INFO:CONSOLE(256)] "ReferenceError: globalThis is not defined", source: http://127.0.0.2:8080/input-3867_page-1.html (256)
+[0806/075904.090980:INFO:CONSOLE(112)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.2:8080/input-3867_page-1.html (112)
+[0806/075904.204622:INFO:CONSOLE(39)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.1:8080/input-3867_page-1.html (39)
+[0806/075904.219469:INFO:CONSOLE(55)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.1:8080/input-3867_page-1.html (55)
+[0806/075904.223051:INFO:CONSOLE(106)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.1:8080/input-3867_page-1.html (106)
+[0806/075904.237267:INFO:CONSOLE(258)] "TypeError: IPCFuzzer.mutate_origin is not a function", source: http://127.0.0.1:8080/input-3867_page-1.html (258)
+[0806/075904.307492:INFO:CONSOLE(115)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.1:8080/input-3867_page-1.html (115)
+[0806/075905.231671:INFO:CONSOLE(36)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.2:8080/input-3868_page-1.html (36)
+[0806/075905.240965:INFO:CONSOLE(52)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.2:8080/input-3868_page-1.html (52)
+[0806/075905.244486:INFO:CONSOLE(103)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.2:8080/input-3868_page-1.html (103)
+[0806/075905.247556:INFO:CONSOLE(153)] "Failed to load filesystem:http://127.0.0.1:8080/temporary/sanitize: Cross origin requests are only supported for protocol schemes: http, data, chrome, https.", source: http://127.0.0.2:8080/input-3868_page-1.html (153)
+[0806/075905.301538:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer?nonce=498cbbd8: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3868_page-1.html (0)
+[0806/075905.304896:INFO:CONSOLE(0)] "Failed to load http://127.0.0.1:8080/sanitizer-cookie?nonce=498cbbd8: The 'Access-Control-Allow-Origin' header has a value 'http://127.0.0.1:8080' that is not equal to the supplied origin. Origin 'http://127.0.0.2:8080' is therefore not allowed access. Have the server send the header with a valid value, or, if an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disabled.", source: http://127.0.0.2:8080/input-3868_page-1.html (0)
+[0806/075905.315998:INFO:CONSOLE(112)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.2:8080/input-3868_page-1.html (112)
+[0806/075905.429056:INFO:CONSOLE(39)] "Cookie: ReferenceError: cookieStore is not defined", source: http://127.0.0.1:8080/input-3868_page-1.html (39)
+[0806/075905.438509:INFO:CONSOLE(55)] "Cookie: TypeError: Cannot read property 'split' of undefined", source: http://127.0.0.1:8080/input-3868_page-1.html (55)
+[0806/075905.441904:INFO:CONSOLE(106)] "OPFS: TypeError: navigator.storage.getDirectory is not a function", source: http://127.0.0.1:8080/input-3868_page-1.html (106)
+[0806/075905.451281:INFO:CONSOLE(249)] "[object DOMException]", source: http://127.0.0.1:8080/input-3868_page-1.html (249)
+[0806/075905.471047:INFO:CONSOLE(274)] "ReferenceError: globalThis is not defined", source: http://127.0.0.1:8080/input-3868_page-1.html (274)
+[0806/075905.529209:INFO:CONSOLE(115)] "FileSystem: NotFoundError: A requested file or directory could not be found at the time an operation was processed.", source: http://127.0.0.1:8080/input-3868_page-1.html (115)
+[0806/075905.606258:INFO:CONSOLE(237)] "[UXSS] [exec-8274f457] 127.0.0.1 127.0.0.2", source: blob:http://127.0.0.2:8080/d23f7a1f-c38b-4f03-89f3-55776a44a1a1 (237)
