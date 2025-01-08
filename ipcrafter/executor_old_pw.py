@@ -1,6 +1,7 @@
 """Executor for Chrome v99"""
 
 import asyncio
+from csv import excel
 import logging
 from playwright.async_api import (
     async_playwright,
@@ -30,7 +31,7 @@ import subprocess
 import time
 from .util import Ctr, MaxCtr, ResetCtr, DMSException, DeadMansSwitch
 
-TIMEOUT: int = 5
+TIMEOUT: int = 3
 HEADLESS: bool = True
 start: float
 
@@ -95,6 +96,8 @@ def kill_chrome_processes():
 
     current_process = psutil.Process()
     children = current_process.children(recursive=True)
+    if len(children) == 0:
+        return
     logging.error(f"Waiting for {len(children)} children")
     psutil.wait_procs(children, timeout=3)
 
@@ -287,7 +290,8 @@ async def execute(
         for arg in msg.args:
             try:
                 msg_copy["args"].append(await arg.json_value())
-            except:
+            except Exception as e:
+                logging.exception(e)
                 pass
         logs.append(msg_copy)
 
