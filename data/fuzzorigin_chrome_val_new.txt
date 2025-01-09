@@ -1,0 +1,9 @@
+2025-01-09 16:28:51,637 - root - INFO - Input: 11465 (executor.py:281)
+URL http://127.0.0.1:8080/input-11465_page-1.html
+2025-01-09 16:28:54,880 - root - WARNING - Testcase Timeout (executor.py:352)
+2025-01-09 16:28:55,049 - root - INFO - Coverage 11465: 99935 edges covered (shm.py:116)
+2025-01-09 16:28:55,303 - root - INFO - Coverage 11465: 449666 edges covered (shm.py:116)
+2025-01-09 16:28:55,435 - root - INFO - Iteration: 11580 (executor.py:319)
+2025-01-09 16:28:55,435 - root - INFO - Time elapsed: 1 day, 0:39:36.775601 (executor.py:320)
+2025-01-09 16:28:55,435 - root - INFO - Average time: 7.67 seconds (executor.py:321)
+2025-01-09 16:28:55,435 - root - INFO - excepts: 0 stmts: 0 (executor.py:322)
