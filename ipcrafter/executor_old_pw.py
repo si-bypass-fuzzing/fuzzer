@@ -142,7 +142,6 @@ class PlaywrightContextWrapper():
             except asyncio.TimeoutError:
                 raise Exception("PlaywrightContextWrapper exit timeout")
 
-
 async def fuzz(
     browser_type: str,
     remote: bool,
@@ -217,7 +216,6 @@ async def visit_seeds(context: BrowserContext) -> None:
         page = await context.new_page()
         await page.goto(url)
 
-
 async def exec_loop(
     browser: Browser,
     browser_type: str,
@@ -229,6 +227,7 @@ async def exec_loop(
     coverage: CoverageCollector|None,
     browse_seeds: bool,
 ) -> None:
+    global start
 
     async with BrowserContextWrapper(await browser.new_context(), browser_type) as context:
         context.on("weberror", lambda e: logging.warning(e.error))
@@ -273,7 +272,6 @@ async def cleanup(context: BrowserContext) -> None:
     while idx < len(context.pages):
         await context.pages[idx].close()
 
-
 async def execute(
     context: BrowserContext, attacker_url: str, victim_url: str
 ) -> list[dict]:
@@ -317,11 +315,9 @@ async def execute(
 
     return logs
 
-
 async def open_page(context: BrowserContext, url: str) -> None:
     page = await context.new_page()
     await page.goto(url)
-
 
 async def visit_page(context: BrowserContext, url: str) -> None:
     page = await context.new_page()
@@ -331,7 +327,6 @@ async def visit_page(context: BrowserContext, url: str) -> None:
     while idx < len(context.pages):
         await click_everything(context.pages[idx])
         idx += 1
-
 
 async def click_everything(page: Page) -> None:
     iframes: list[Frame] = page.frames

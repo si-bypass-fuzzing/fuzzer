@@ -10,6 +10,7 @@ from .jabby.generator.generator import Generator
 from . import executor
 
 from . import executor_old_pw, executor_pyppeteer
+from .util import URLGenerator
 
 PRUNE: bool = True
 
@@ -37,6 +38,7 @@ class Fuzzer:
         collect_coverage: bool,
         num_iterations: int | None,
         browse_seeds: bool,
+        url_generator: URLGenerator|None
     ) -> None:
         if browser_type == "chrome-99":
             asyncio.run(
@@ -66,6 +68,7 @@ class Fuzzer:
                     collect_coverage,
                     num_iterations,
                     browse_seeds,
+                    url_generator
                 )
             )
 
@@ -154,6 +157,7 @@ class IPCFuzzer(Fuzzer):
             collect_coverage,
             num_iterations,
             browse_seeds,
+            None
         )
 
 class PyppeteerFuzzer():

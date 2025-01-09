@@ -115,3 +115,14 @@ class DeadMansSwitch:
             self.kill()
         logging.error("DMS")
         raise DMSException("Dead man's switch triggered: loop has not sent a signal for the specified timeout period.")
+
+class URLGenerator:
+    def __init__(self, to_origin: Callable[[int], str], to_url: Callable[[int,int,int], str]):
+        self.to_origin = to_origin
+        self.to_url = to_url
+
+    def get_origin(self, origin_id: int) -> str:
+        return self.to_origin(origin_id)
+
+    def get_url(self, origin_id: int, page_id: int, input_id: int) -> str:
+        return self.to_url(origin_id, page_id, input_id)

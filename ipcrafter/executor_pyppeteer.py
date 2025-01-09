@@ -210,7 +210,7 @@ async def exec_loop(
         browse_seeds: bool = True,
     ) -> None:
     logging.info("exec-loop")
-
+    global start
     if browse_seeds:
         await asyncio.wait_for(visit_seeds(browser), timeout=TIMEOUT)
         logging.info("Visited seeds")

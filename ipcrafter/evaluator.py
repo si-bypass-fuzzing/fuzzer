@@ -3,11 +3,12 @@ from .fuzzer import Fuzzer
 import os
 from .fuzzers.fuzzorigin.src.script.testcase_generator import TestcaseGenerator as FuzzoriginTestcaseGenerator
 from .fuzzers.fuzzorigin.src.script.testcase import Testcase
+from .util import URLGenerator
 
 class FuzzoriginEvaluator(Fuzzer):
     def __init__(self, browser: str, different_ips:bool=False,server_dir: str="server", crash_dir: str="crash", log_dir: str="logs"):
         self.browser = browser
-       
+
         self.server_dir: str = server_dir
         self.crash_dir: str = crash_dir
         self.log_dir: str = log_dir
@@ -22,16 +23,16 @@ class FuzzoriginEvaluator(Fuzzer):
 
     def get_name_prefix(self, input_id: int) -> str:
         return f"input-{input_id}"
-    
+
     def get_name(self, input_id: int, origin: int, page: int) -> str:
         return f"{self.get_name_prefix(input_id)}_page-{page+1}.html"
-    
+
     def get_path(self, input_id: int, origin: int, page: int) -> str:
         return os.path.join(self.server_dir, f"origin-{origin+1}",self.get_name(input_id, origin, page))
 
 
     def fuzz(self, browser: str, remote: bool, browser_path: str, collect_coverage: bool, num_iterations: int | None) -> None:
-        
+
         def generate() -> int:
             self.input_id += 1
             testcase:Testcase = self.testcase_generator.generate(self.get_name_prefix(self.input_id))
@@ -41,7 +42,7 @@ class FuzzoriginEvaluator(Fuzzer):
                         f.write(testcase.get(origin, page).to_string(debug=True))
 
             return self.input_id
-        
+
         def prune(browser_logs: bool) -> None:
             start_id = self.input_id - 10
             if start_id > 0:
@@ -61,4 +62,4 @@ class FuzzoriginEvaluator(Fuzzer):
         def crash_callback(logs: list[dict]) -> None:
             pass
 
-        super().run(browser, remote, browser_path, self.log_dir, generate, prune, crash_callback, collect_coverage, num_iterations, browse_seeds=False)
+        super().run(browser, remote, browser_path, self.log_dir, generate, prune, crash_callback, collect_coverage, num_iterations, False, URLGenerator(lambda origin_id: f"http://127.0.0.1:808{origin_id-1}", lambda origin_id, page_id, input_id: f"http://127.0.0.1:808{origin_id-1}/{self.get_name(input_id, origin_id, page_id-1)}") )

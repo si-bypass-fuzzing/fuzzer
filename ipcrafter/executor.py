@@ -20,7 +20,7 @@ from timeit import default_timer as timer
 from datetime import timedelta
 import os
 from .shm import CoverageCollector, SHM_SIZE, ShmBitmap
-from .util import *
+from .util import Ctr, MaxCtr, ResetCtr, WebErrorHandler, ConsoleHandler, JSStatCollector, URLGenerator
 
 SANDBOX: bool = False
 
@@ -113,7 +113,13 @@ async def fuzz(
     collect_coverage: bool,
     num_iterations: int | None,
     browse_seeds: bool = False,
+    url_generator: URLGenerator| None = None,
 ):
+
+    if url_generator is None:
+        url_generator = URLGenerator(lambda origin_id: URLScope.to_origin(origin_id), lambda origin_id, page_id, input_id : URLScope.to_url(origin_id, page_id, input_id))
+
+
     # os.environ["PWDEBUG"] = "1"
     # os.environ["DEBUG"] = "pw:browser"
     os.environ["ASAN_OPTIONS"] = (
@@ -213,6 +219,7 @@ async def fuzz(
                             cov,
                             stat_collector,
                             browse_seeds,
+                            url_generator,
                         )
             except PlaywrightError as e:
                 logging.error(e)
@@ -226,9 +233,9 @@ async def fuzz(
             kill_firefox_processes()
 
 
-async def visit_seeds(context: BrowserContext) -> None:
+async def visit_seeds(context: BrowserContext, url_generator: URLGenerator) -> None:
     for origin_id in range(1, 3):
-        url = URLScope.to_origin(origin_id) + "/seed"
+        url = url_generator.get_origin(origin_id) + "/seed"
         page = await context.new_page()
         await page.goto(url)
 
@@ -244,17 +251,19 @@ async def exec_loop(
     coverage: list[CoverageCollector] | None,
     stat_collector: JSStatCollector,
     browse_seeds: bool,
+    url_generator: URLGenerator,
 ) -> None:
 
     async with BrowserContextWrapper(
         await browser.new_context(), browser_type
     ) as context:
+        global start
         we_handler: WebErrorHandler = WebErrorHandler()
 
         context.on("weberror", we_handler.handle)
 
         if browse_seeds:
-            await visit_seeds(context)
+            await visit_seeds(context, url_generator)
             logging.info("Visited seeds")
         else:
             fut = open_page(context, "about:blank")
@@ -272,12 +281,13 @@ async def exec_loop(
             logging.info(f"Input: {input_id}")
 
             try:
-
-                attacker_url = URLScope.to_url(1, 1, input_id)
-                victim_url = URLScope.to_url(2, 1, input_id)
+                print("URL", url_generator.get_url(1, 1, input_id))
+                attacker_url = url_generator.get_url(1, 1, input_id)
+                victim_url = url_generator.get_url(2, 1, input_id)
                 await execute(context, attacker_url, victim_url, console_handler, browse_seeds)
 
             except Exception as e:
+                logging.error(e)
                 # these should be executed even if the browser crashes
                 if coverage is not None:
                     for cov in coverage:
