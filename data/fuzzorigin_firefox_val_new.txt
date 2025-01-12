@@ -1,0 +1,13 @@
+2025-01-12 10:54:34,075 - root - INFO - Iteration: 25443 (executor.py:319)                       [0/1944]
+2025-01-12 10:54:34,075 - root - INFO - Time elapsed: 2 days, 2:19:18.653659 (executor.py:320)
+2025-01-12 10:54:34,075 - root - INFO - Average time: 7.12 seconds (executor.py:321)
+2025-01-12 10:54:34,075 - root - INFO - excepts: 0 stmts: 0 (executor.py:322)
+2025-01-12 10:54:36,007 - root - INFO - Input: 25190 (executor.py:281)
+URL http://127.0.0.1:8080/input-25190_page-1.html
+2025-01-12 10:54:40,008 - root - WARNING - Testcase Timeout (executor.py:352)
+2025-01-12 10:54:40,196 - root - INFO - Coverage 25190: 262687 edges covered (shm.py:116)
+2025-01-12 10:54:40,310 - root - INFO - Coverage 25190: 375832 edges covered (shm.py:116)
+2025-01-12 10:54:40,373 - root - INFO - Iteration: 25444 (executor.py:319)
+2025-01-12 10:54:40,373 - root - INFO - Time elapsed: 2 days, 2:19:24.952204 (executor.py:320)
+2025-01-12 10:54:40,373 - root - INFO - Average time: 7.12 seconds (executor.py:321)
+2025-01-12 10:54:40,373 - root - INFO - excepts: 0 stmts: 0 (executor.py:322)
