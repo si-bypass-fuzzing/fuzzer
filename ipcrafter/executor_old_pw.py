@@ -45,7 +45,7 @@ const { firefox } = require('playwright');
 })();
 """
 
-dms = None
+# dms = None
 
 class BrowserProcess:
     def __init__(self, path:str, headless:bool, log_dir, pipe):
@@ -83,10 +83,13 @@ class BrowserProcess:
         return "http://127.0.0.1:9222"
 
     def __enter__(self):
+        logging.info("BrowserProcess enter")
         return self
 
     def __exit__(self, type, value, traceback):
-        self.proc.kill()
+        logging.info("BrowserProcess exit")
+        # self.proc.kill()
+        os.system("pkill -9 chrome")
         # kill_chrome_processes()
 
 def kill_chrome_processes():
@@ -94,14 +97,33 @@ def kill_chrome_processes():
     os.system("pkill -9 chrome")
     # pkill -9 xvfb-run; pkill -9 Xvfb;
 
-    current_process = psutil.Process()
-    children = current_process.children(recursive=True)
-    if len(children) == 0:
-        return
-    logging.error(f"Waiting for {len(children)} children")
-    psutil.wait_procs(children, timeout=3)
+    # current_process = psutil.Process()
+    # children = current_process.children(recursive=True)
+    # if len(children) == 0:
+    #     return
+    # logging.error(f"Waiting for {len(children)} children")
+    # psutil.wait_procs(children, timeout=3)
 
+class BrowserWrapper():
+    def __init__(self, browser:Browser):
+        self.browser = browser
 
+    async def __aenter__(self) -> Browser:
+        logging.info("BrowserWrapper enter")
+        return self.browser
+
+    async def __aexit__(self, type, value, traceback):
+        logging.info("BrowserWrapper exit")
+        try:
+            await asyncio.wait_for(self.browser.close(), timeout=TIMEOUT * 0.25)
+        except asyncio.TimeoutError as e:
+            logging.error("BrowserWrapper exit timeout")
+            kill_chrome_processes()
+            try:
+                await asyncio.wait_for(self.browser.close(), timeout=TIMEOUT * 0.25)
+            except asyncio.TimeoutError:
+                logging.error("BrowserWrapper exit timeout 2")
+                # raise Exception("BrowserWrapper exit timeout")
 
 class BrowserContextWrapper():
     def __init__(self, context: BrowserContext, browser_type: str):
@@ -109,6 +131,7 @@ class BrowserContextWrapper():
         self.browser_type = browser_type
 
     async def __aenter__(self) -> BrowserContext:
+        logging.info("BrowserContextWrapper enter")
         return self.context
 
     async def __aexit__(self, type, value, traceback):
@@ -120,7 +143,8 @@ class BrowserContextWrapper():
             try:
                 await asyncio.wait_for(self.context.close(), timeout=TIMEOUT * 0.25)
             except asyncio.TimeoutError:
-                raise Exception("BrowserContextWrapper exit timeout")
+                logging.error("BrowserContextWrapper exit timeout 2")
+                # raise Exception("BrowserContextWrapper exit timeout")
 
 
 class PlaywrightContextWrapper():
@@ -129,9 +153,11 @@ class PlaywrightContextWrapper():
         self.browser_type = browser_type
 
     async def __aenter__(self) -> Playwright:
+        logging.info("PlaywrightContextWrapper enter")
         return await self.context.__aenter__()
 
     async def __aexit__(self, type, value, traceback):
+        logging.info("PlaywrightContextWrapper exit")
         try:
             await asyncio.wait_for(self.context.__aexit__(self, type, value, traceback), timeout=TIMEOUT * 0.25)
         except asyncio.TimeoutError as e:
@@ -140,7 +166,8 @@ class PlaywrightContextWrapper():
             try:
                 await asyncio.wait_for(self.context.__aexit__(self, type, value, traceback), timeout=TIMEOUT * 0.25)
             except asyncio.TimeoutError:
-                raise Exception("PlaywrightContextWrapper exit timeout")
+                logging.error("PlaywrightContextWrapper exit timeout 2")
+                # raise Exception("PlaywrightContextWrapper exit timeout")
 
 async def fuzz(
     browser_type: str,
@@ -167,9 +194,9 @@ async def fuzz(
     global start
     start = timer()
 
-    global dms
-    dms = DeadMansSwitch(180, kill_chrome_processes)
-    await dms.start()
+    # global dms
+    # dms = DeadMansSwitch(180, kill_chrome_processes)
+    # await dms.start()
 
     ctr: Ctr
 
@@ -187,7 +214,13 @@ async def fuzz(
                     try:
                         async with PlaywrightContextWrapper(async_playwright(), browser_type) as p:
                             fut = p.chromium.connect_over_cdp(browser_process.cdp_endpoint())
-                            async with await fut as browser:
+                            browser = None
+                            try:
+                                browser = await asyncio.wait_for(fut, timeout=TIMEOUT)
+                            except asyncio.TimeoutError:
+                                logging.error("CDP Connection Timeout")
+                                raise Exception("CDP Connection Timeout")
+                            async with BrowserWrapper(browser) as browser:
                                 await exec_loop(
                                     browser,
                                     browser_type,
@@ -203,8 +236,8 @@ async def fuzz(
                         logging.exception(e)
         except Exception as e:
             # generic catch for playwright runtime errors
-            print(e)
-            logging.exception(e)
+            # print(e)
+            logging.error(e)
         prune_callback(True)
         kill_chrome_processes()
 
@@ -229,12 +262,24 @@ async def exec_loop(
 ) -> None:
     global start
 
-    async with BrowserContextWrapper(await browser.new_context(), browser_type) as context:
+    fut = browser.new_context()
+    context = None
+    try:
+        context = await asyncio.wait_for(fut, timeout=TIMEOUT)
+    except asyncio.TimeoutError:
+        logging.error("Context Creation Timeout")
+        raise Exception("Context Creation Timeout")
+
+    async with BrowserContextWrapper(context, browser_type) as context:
         context.on("weberror", lambda e: logging.warning(e.error))
 
         if browse_seeds:
-            await visit_seeds(context)
-            logging.info("Visited seeds")
+            fut = visit_seeds(context)
+            try:
+                await asyncio.wait_for(fut, timeout=TIMEOUT)
+                logging.info("Visited seeds")
+            except asyncio.TimeoutError:
+                logging.warning("Seeds Timeout")
 
         while ctr.step():
             input_id = generate_callback()
@@ -257,8 +302,8 @@ async def exec_loop(
 
             prune_callback(False)
 
-            if dms is not None:
-                dms.signal()
+            # if dms is not None:
+            #     dms.signal()
 
             current: float = timer()
             logging.info(f"Iteration: {ctr.value()}")
@@ -289,7 +334,9 @@ async def execute(
             try:
                 msg_copy["args"].append(await arg.json_value())
             except Exception as e:
-                logging.exception(e)
+                logging.error(e)
+                if isinstance(e, DMSException):
+                    raise e
                 pass
         logs.append(msg_copy)
 

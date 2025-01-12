@@ -2,6 +2,7 @@ import asyncio
 import time
 import logging
 from typing import Callable
+import traceback
 
 class WebErrorHandler:
     THRESHOLD = 100
@@ -76,7 +77,7 @@ class MaxCtr(Ctr):
         return self.i < self.max
 
 class ResetCtr(Ctr):
-    def __init__(self, interval:int = 100):
+    def __init__(self, interval:int = 50):
         super().__init__()
         self.interval:int = interval
 
@@ -88,7 +89,12 @@ class ResetCtr(Ctr):
         return True
 
 class DMSException(Exception):
-    pass
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message
+
+    def __str__(self):
+        return "DMSException: " + self.message
 
 class DeadMansSwitch:
     def __init__(self, timeout, kill: Callable[[], None] | None = None):
@@ -105,15 +111,17 @@ class DeadMansSwitch:
         self.last_signal_time = time.time()
 
     async def _monitor(self):
+        self.last_signal_time = time.time()
         while True:
             await asyncio.sleep(1)  # check every second
             if time.time() - self.last_signal_time > self.timeout:
                 await self._handle_timeout()
 
     async def _handle_timeout(self):
-        if self.kill:
+        if self.kill is not None:
             self.kill()
         logging.error("DMS")
+        # traceback.print_stack()
         raise DMSException("Dead man's switch triggered: loop has not sent a signal for the specified timeout period.")
 
 class URLGenerator:

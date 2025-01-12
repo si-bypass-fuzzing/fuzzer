@@ -225,7 +225,7 @@ async def fuzz(
                 logging.error(e)
         except Exception as e:
             # generic catch for playwright runtime errors
-            logging.error(e)
+            logging.exception(e)
         prune_callback(True)
         if browser_type == "chrome":
             kill_chrome_processes()
@@ -289,6 +289,7 @@ async def exec_loop(
             except Exception as e:
                 logging.error(e)
                 # these should be executed even if the browser crashes
+                logging.exception(e)
                 if coverage is not None:
                     for cov in coverage:
                         cov.write_coverage(input_id)

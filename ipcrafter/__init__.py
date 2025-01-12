@@ -6,7 +6,7 @@ import logging
 import sys
 import random
 
-random.seed(2)
+random.seed(1)
 
 
 class CustomFormatter(logging.Formatter):
