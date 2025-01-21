@@ -441,6 +441,10 @@ def general_false_positive_filter(log: str) -> bool:
 def chrome_false_positive_filter(log: str) -> bool:
     if "http\\x00\\x00\\x00\\x00(\\x00\\x00\\x00 \\x00\\x00\\x008bf18cb9455f4a8e8fa93d14ab5ebb5d" in log:
         return True
+    if "<!--dynamicFrame" in log:
+        return True
+    if "ISO-8859-1" in log:
+        return True
     return False
 
 
