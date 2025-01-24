@@ -1,0 +1,155 @@
+<html>
+<head>
+</head>
+<body>
+<script>navigator.serviceWorker.register('/sw.js').then((reg) => {reg.update();}).catch((e) => {});</script>
+<script>
+document.cookie = 'sanitize=127.0.0.2; Domain=127.0.0.2; Path=/; SameSite=Lax; max-age=31536000';
+document.cookie = 'magic_lax=8bf18cb9455f4a8e8fa93d14ab5ebb5d; Domain=127.0.0.2; Path=/; SameSite=Lax; max-age=31536000';
+document.cookie = 'magic_strict=8bf18cb9455f4a8e8fa93d14ab5ebb5d; Domain=127.0.0.2; Path=/; SameSite=Strict; max-age=31536000';
+document.cookie = 'sanitize_partitioned=127.0.0.2; Domain=127.0.0.2; Secure; Path=/; SameSite=None; Partitioned; max-age=31536000';
+localStorage.setItem('sanitize', '127.0.0.2');
+localStorage.setItem('8bf18cb9455f4a8e8fa93d14ab5ebb5d', '8bf18cb9455f4a8e8fa93d14ab5ebb5d');
+
+try {
+  let openRequest = indexedDB.open('sanitize', 1);
+
+  openRequest.onupgradeneeded = function(e) {
+    let db = e.target.result;
+    if (!db.objectStoreNames.contains('sanitize')) {
+      db.createObjectStore('sanitize', {keyPath: 'key'});
+    }
+  };
+
+  openRequest.onsuccess = function(e) {
+    let db = e.target.result;
+    let transaction = db.transaction(['sanitize'], 'readwrite');
+    let store = transaction.objectStore('sanitize');
+
+    let item = {
+      key: 'sanitize',
+      value: '127.0.0.2',
+    };
+    let request = store.put(item);
+
+    request.onsuccess = function(e) {
+      console.log('Data written successfully');
+      db.close();
+    };
+
+    request.onerror = function(e) {
+      console.error(e.target.error);
+      db.close();
+    };
+  };
+
+  openRequest.onerror = function(e) {
+    console.error(e);
+  };
+} catch (e) {
+  console.error(e);
+}
+
+
+try {
+  let openRequest = indexedDB.open('sanitize', 1);
+
+  openRequest.onupgradeneeded = function(e) {
+    let db = e.target.result;
+    if (!db.objectStoreNames.contains('sanitize')) {
+      db.createObjectStore('sanitize', {keyPath: 'key'});
+    }
+  };
+
+  openRequest.onsuccess = function(e) {
+    let db = e.target.result;
+    let transaction = db.transaction(['sanitize'], 'readwrite');
+    let store = transaction.objectStore('sanitize');
+
+    let item = {
+      key: '8bf18cb9455f4a8e8fa93d14ab5ebb5d',
+      value: '8bf18cb9455f4a8e8fa93d14ab5ebb5d',
+    };
+    let request = store.put(item);
+
+    request.onsuccess = function(e) {
+      console.log('Data written successfully');
+      db.close();
+    };
+
+    request.onerror = function(e) {
+      console.error(e.target.error);
+      db.close();
+    };
+  };
+
+  openRequest.onerror = function(e) {
+    console.error(e);
+  };
+} catch (e) {
+  console.error(e);
+}
+
+
+(async () => {
+  try {
+    const dirHandle = await navigator.storage.getDirectory();
+    const fileHandle = await dirHandle.getFileHandle('sanitize', {create: true});
+    const writable = await fileHandle.createWritable();
+    await writable.write('127.0.0.2');
+    await writable.close();
+  } catch (e) {
+    console.error(e);
+  }
+})();
+
+
+(async () => {
+  try {
+    const dirHandle = await navigator.storage.getDirectory();
+    const fileHandle = await dirHandle.getFileHandle('8bf18cb9455f4a8e8fa93d14ab5ebb5d', {create: true});
+    const writable = await fileHandle.createWritable();
+    await writable.write('8bf18cb9455f4a8e8fa93d14ab5ebb5d');
+    await writable.close();
+  } catch (e) {
+    console.error(e);
+  }
+})();
+
+
+{
+  function onFsError(e) {
+    // console.error(e);
+  }
+  function onFileEntryWrite (f) {
+    f.createWriter(
+      (fileWriter) => { let data = new Blob(['sanitize'], { type: 'text/plain' }); fileWriter.write(data); },
+      onFsError
+    );
+  }
+  function onFsWrite (fs) {
+    fs.root.getFile('127.0.0.2', {create: true}, onFileEntryWrite, onFsError);
+  }
+  webkitRequestFileSystem(Window.TEMPORARY, 256, onFsWrite, onFsError);
+}
+
+
+{
+  function onFsError(e) {
+    // console.error(e);
+  }
+  function onFileEntryWrite (f) {
+    f.createWriter(
+      (fileWriter) => { let data = new Blob(['8bf18cb9455f4a8e8fa93d14ab5ebb5d'], { type: 'text/plain' }); fileWriter.write(data); },
+      onFsError
+    );
+  }
+  function onFsWrite (fs) {
+    fs.root.getFile('8bf18cb9455f4a8e8fa93d14ab5ebb5d', {create: true}, onFileEntryWrite, onFsError);
+  }
+  webkitRequestFileSystem(Window.TEMPORARY, 256, onFsWrite, onFsError);
+}
+
+</script>
+</body>
+</html>

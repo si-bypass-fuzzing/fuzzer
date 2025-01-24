@@ -1,0 +1,6 @@
+[submodule "ipcrafter/fuzzers/fuzzorigin"]
+	path = ipcrafter/fuzzers/fuzzorigin
+	url = git@github.com:si-bypass-fuzzing/fuzzorigin.git
+[submodule "generator/mdn"]
+	path = generator/mdn
+	url = https://github.com/mdn/content.git

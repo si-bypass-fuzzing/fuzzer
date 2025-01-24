@@ -1,0 +1,83 @@
+<html>
+<head>
+<script>IPCFuzzer.deactivate_renderer_checks(0xfffffffffffffeff);
+IPCFuzzer.activate_leak_sanitizer();</script></head>
+<body>
+<script>navigator.serviceWorker.register('/sw.js').then((reg) => {reg.update();}).catch((e) => {});</script>
+<script>
+document.cookie = 'sanitize=127.0.0.1; Domain=127.0.0.1; Path=/; SameSite=Lax; max-age=31536000';
+document.cookie = 'sanitize_partitioned=127.0.0.1; Domain=127.0.0.1; Secure; Path=/; SameSite=None; Partitioned; max-age=31536000';
+localStorage.setItem('sanitize', '127.0.0.1');
+
+try {
+  let openRequest = indexedDB.open('sanitize', 1);
+
+  openRequest.onupgradeneeded = function(e) {
+    let db = e.target.result;
+    if (!db.objectStoreNames.contains('sanitize')) {
+      db.createObjectStore('sanitize', {keyPath: 'key'});
+    }
+  };
+
+  openRequest.onsuccess = function(e) {
+    let db = e.target.result;
+    let transaction = db.transaction(['sanitize'], 'readwrite');
+    let store = transaction.objectStore('sanitize');
+
+    let item = {
+      key: 'sanitize',
+      value: '127.0.0.1',
+    };
+    let request = store.put(item);
+
+    request.onsuccess = function(e) {
+      console.log('Data written successfully');
+      db.close();
+    };
+
+    request.onerror = function(e) {
+      console.error(e.target.error);
+      db.close();
+    };
+  };
+
+  openRequest.onerror = function(e) {
+    console.error(e);
+  };
+} catch (e) {
+  console.error(e);
+}
+
+
+(async () => {
+  try {
+    const dirHandle = await navigator.storage.getDirectory();
+    const fileHandle = await dirHandle.getFileHandle('sanitize', {create: true});
+    const writable = await fileHandle.createWritable();
+    await writable.write('127.0.0.1');
+    await writable.close();
+  } catch (e) {
+    console.error(e);
+  }
+})();
+
+
+{
+  function onFsError(e) {
+    // console.error(e);
+  }
+  function onFileEntryWrite (f) {
+    f.createWriter(
+      (fileWriter) => { let data = new Blob(['sanitize'], { type: 'text/plain' }); fileWriter.write(data); },
+      onFsError
+    );
+  }
+  function onFsWrite (fs) {
+    fs.root.getFile('127.0.0.1', {create: true}, onFileEntryWrite, onFsError);
+  }
+  webkitRequestFileSystem(Window.PERSISTENT, 256, onFsWrite, onFsError);
+}
+
+</script>
+</body>
+</html>

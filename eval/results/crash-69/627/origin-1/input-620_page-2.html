@@ -1,0 +1,281 @@
+<html>
+<head>
+<script>IPCFuzzer.deactivate_renderer_checks();
+IPCFuzzer.activate_leak_sanitizer();</script>
+<script>navigator.serviceWorker.register('/sw.js').then((reg) => {reg.update();}).catch((e) => {});</script>
+<script>try {
+	function check_site_violation(src, exec, token){
+
+let fetch_url = new URL(src);
+let exec_url = new URL(exec);
+if(fetch_url.hostname != exec_url.hostname){
+  console.log('[UXSS] [exec-' + token + '] ' + fetch_url.hostname + ' ' + exec_url.hostname);
+  return true;
+}
+  try {
+    if(IPCFuzzer.check_isolation(src)){
+      console.log('[UXSS] [process-' + token + '] ' + src);
+      return true;
+    }
+  } catch (error) {
+    console.log('Process Isolation Check: ' + error);
+  }
+
+try {
+  let cookie_site = document.cookie.split('; ').find((row) => row.startsWith('sanitize='));
+  if (cookie_site !== null){
+    cookie_site = cookie_site.split('=')[1];
+    if(fetch_url.hostname != cookie_site){
+      console.log('[UXSS] [cookie-' + token + '] ' + fetch_url.hostname + ' ' + cookie_site);
+      return true;
+    }
+  }
+  cookieStore.get('sanitize').then(c => {
+      if(fetch_url.hostname != c.value) {
+        console.log('[UXSS] [cookie-' + token + '] ' + fetch_url.hostname + ' ' + c.value);
+    }
+  }).catch(e => {});
+} catch (error) {
+  console.log('Cookie: ' + error);
+}
+try {
+  let partitioned_cookie_site = document.cookie.split('; ').find((row) => row.startsWith('sanitize_partitioned='));
+  if (partitioned_cookie_site !== null){
+    partitioned_cookie_site = partitioned_cookie_site.split('=')[1];
+    if(fetch_url.hostname != partitioned_cookie_site){
+      console.log('[UXSS] [cookie_partitioned-' + token + '] ' + fetch_url.hostname + ' ' + partitioned_cookie_site);
+      return true;
+    }
+  }
+  cookieStore.get('sanitize_partitioned')
+    .then(c => {
+      if(fetch_url.hostname != c.value) { console.log('[UXSS] [cookie_partitioned-' + token + '] ' + fetch_url.hostname + ' ' + c.value);}
+    }).catch(e => {});
+} catch (error) {
+  console.log('Cookie: ' + error);
+}
+try {
+  let storage_site = localStorage.getItem('sanitize');
+  if(storage_site != null && fetch_url.hostname != storage_site){
+      console.log('[UXSS] [localStorage-' + token + '] ' + fetch_url.hostname + ' ' + storage_site)
+      return true;
+  }
+} catch (error) {
+  console.log('localStorage: ' + error);
+}
+
+  try {
+    let openRequest = indexedDB.open('sanitize', 1);
+
+    openRequest.onsuccess = function(e) {
+      let db = e.target.result;
+      let transaction = db.transaction(['sanitize'], 'readonly');
+      let store = transaction.objectStore('sanitize');
+      let request = store.get('sanitize');
+
+      request.onsuccess = function(e) {
+        let indexeddb_site = e.target.result.value;
+        if (fetch_url.hostname != indexeddb_site) {
+          console.log('[UXSS] [indexeddb-' + token + '] ' + fetch_url.hostname + ' ' + indexeddb_site)
+        }
+        db.close();
+      };
+
+      request.onerror = function(e) {
+        console.log('Error reading data:', e.target.error);
+        db.close();
+      };
+    };
+
+    openRequest.onerror = function(e) {
+      console.log('Error opening database:', e.target.error);
+    };
+} catch (e) {}
+
+  try {
+    async function readOriginPrivateFilesystem(){
+      try {
+        const dirHandle = await navigator.storage.getDirectory();
+        const fileHandle = await dirHandle.getFileHandle('sanitize', {create: false});
+        const file = await fileHandle.getFile();
+        const opfs_site = await file.text();
+        if(opfs_site != '' && fetch_url.hostname != opfs_site) {
+          console.log('[UXSS] [opfs-' + token + '] ' + fetch_url.hostname + ' ' + opfs_site);
+        }
+      } catch (error) {
+        console.log('OPFS: ' + error);
+      }
+    }
+    readOriginPrivateFilesystem();
+  } catch (error) {
+    console.log('OPFS: ' + error);
+  }
+  try {
+    function onFsError(error) {
+      console.log('FileSystem: ' + error)
+    }
+
+    function onFileEntryRead(fe) {
+      try {
+        fe.file( (f) => {
+          f.text()
+            .then( (filesystem_site) => {
+              if(filesystem_site != '' && fetch_url.hostname != filesystem_site) {
+                console.log('[UXSS] [filesystem-' + token + '] ' + fetch_url.hostname + ' ' + filesystem_site);
+              }
+            })
+        });
+      } catch (error) {
+        console.log('FileSystem: ' + error);
+      }
+    }
+
+    function onFsRead(fs) {
+      fs.root.getFile('sanitize', {create: false}, onFileEntryRead, onFsError);
+    }
+    webkitRequestFileSystem(Window.TEMPORARY, 256, onFsRead, onFsError);
+  } catch (error) {
+    console.log('OPFS: ' + error);
+  }
+
+  try {
+    let hosts = ['127.0.0.1', '127.0.0.2'];
+    hosts.forEach(host => {
+      var x = new XMLHttpRequest();
+
+      x.onload = function () {
+          if (this.readyState == 4 && this.status == 200) {
+              let filesystem_site = x.responseText;
+              if (filesystem_site != '' && fetch_url.hostname != filesystem_site) {
+                  console.log('[UXSS] [filesystem-' + token + '] ' + fetch_url.hostname + ' ' + filesystem_site);
+              }
+          }
+      };
+
+      x.open('GET', 'filesystem:http://' + host + ':8080/temporary/sanitize', true);
+      x.send();
+    });
+  } catch (error) {
+}
+
+  let hosts = ['127.0.0.1', '127.0.0.2'];
+  hosts.forEach(host => {
+    let url = 'http://' + host + ':8080/sanitizer?nonce=' + token;
+    try {
+      fetch(url).then((response) => {
+          if (response.ok()) {
+            let text = response.text();
+            if (text.includes('127.0.0.1')) {
+              console.log('[UXSS] [fetch-' + token + '] ' + host + ' ' + text);
+            }
+          }
+      }).catch(error => {});
+    } catch (error) {}
+
+    url = 'http://' + host + ':8080/sanitizer-cookie?nonce=' + token;
+    try {
+      fetch(url, {
+        credentials: 'include',
+        mode: 'cors',
+      }).then((response) => {
+          if (response.ok()) {
+            let text = response.text();
+            if (text.includes('127.0.0.1')) {
+              console.log('[UXSS] [fetch-credentialed-' + token + '] ' + host + ' ' + text);
+            }
+          }
+      }).catch(error => {});
+    } catch (error) {}
+  });
+  return false;
+}
+} catch (e) {console.log(e)}
+try {
+	function check_iframe_site_violation(src, frame, token){
+  try {
+    let fetch_url = new URL(src);
+    let cookie_site = frame.contentWindow.document.cookie.split('; ').find((row) => row.startsWith('sanitize='))
+    if (cookie_site !== null) {
+      cookie_site = cookie_site.split('=')[1];
+      if(cookie_site != null && fetch_url.hostname != cookie_site){
+        console.log('[UXSS] [iframe-cookie-' + token + '] ' + fetch_url.hostname + ' ' + cookie_site);
+      }
+    }
+  } catch (error) {
+    console.log('Iframe Cookie: ' + error);
+  }
+}
+} catch (e) {console.log(e)}
+try {
+	function check_window_site_violation(src, win, token){
+  try {
+    let fetch_url = new URL(src);
+    let cookie_site = win.document.cookie.split('; ').find((row) => row.startsWith('sanitize='));
+    if (cookie_site !== null) {
+      cookie_site = cookie_site.split('=')[1];
+      if(cookie_site != null && fetch_url.hostname != cookie_site){
+        console.log('[UXSS] [win-cookie-' + token + '] ' + fetch_url.hostname + ' ' + cookie_site);
+      }
+    }
+  } catch (error) {
+    console.log('Window Cookie: ' + error);
+  }
+}
+} catch (e) {console.log(e)}
+</script>
+</head>
+<body>
+<h1>d3ef7a75</h1><p>foo</p>
+<script>
+async function foo() {
+	try {
+		check_site_violation('http://127.0.0.1:8080', location.origin, 'b35268df');
+
+	} catch (e) {console.log(e)}
+	try {
+		IPCFuzzer.mutate_storage_key_replace_host('http://127.0.0.2:8080/input-620_page-2.html');
+	} catch (e) {console.log(e)}
+	try {
+		var var0 = 'manual';
+	} catch (e) {console.log(e)}
+	try {
+		window.history.scrollRestoration = var0;
+	} catch (e) {console.log(e)}
+	try {
+		IPCFuzzer.mutate_url_replace_host('http://127.0.0.2:8080/input-620_page-2.html');
+	} catch (e) {console.log(e)}
+	try {
+		IPCFuzzer.mutate_site_for_cookies_replace_host('http://127.0.0.2:8080/input-620_page-2.html');
+	} catch (e) {console.log(e)}
+	try {
+		var var1 = await window.crypto.getRandomValues('');
+	} catch (e) {console.log(e)}
+	try {
+		IPCFuzzer.mutate_url_replace_host('http://127.0.0.2:8080/input-620_page-2.html');
+	} catch (e) {console.log(e)}
+	try {
+		var var2 = '<html>\n<head>\n<script>IPCFuzzer.deactivate_renderer_checks();\nIPCFuzzer.activate_leak_sanitizer();<\/script>\n<script>navigator.serviceWorker.register("/sw.js").then((reg) => {reg.update();}).catch((e) => {});<\/script>\n<script>try {\n	function check_site_violation(src, exec, token){\n\nlet fetch_url = new URL(src);\nlet exec_url = new URL(exec);\nif(fetch_url.hostname != exec_url.hostname){\n  console.log("[UXSS] [exec-" + token + "] " + fetch_url.hostname + " " + exec_url.hostname);\n  return true;\n}\n  try {\n    if(IPCFuzzer.check_isolation(src)){\n      console.log("[UXSS] [process-" + token + "] " + src);\n      return true;\n    }\n  } catch (error) {\n    console.log("Process Isolation Check: " + error);\n  }\n\ntry {\n  let cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize="));\n  if (cookie_site !== null){\n    cookie_site = cookie_site.split("=")[1];\n    if(fetch_url.hostname != cookie_site){\n      console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);\n      return true;\n    }\n  }\n  cookieStore.get("sanitize").then(c => {\n      if(fetch_url.hostname != c.value) {\n        console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + c.value);\n    }\n  }).catch(e => {});\n} catch (error) {\n  console.log("Cookie: " + error);\n}\ntry {\n  let partitioned_cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize_partitioned="));\n  if (partitioned_cookie_site !== null){\n    partitioned_cookie_site = partitioned_cookie_site.split("=")[1];\n    if(fetch_url.hostname != partitioned_cookie_site){\n      console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + partitioned_cookie_site);\n      return true;\n    }\n  }\n  cookieStore.get("sanitize_partitioned")\n    .then(c => {\n      if(fetch_url.hostname != c.value) { console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + c.value);}\n    }).catch(e => {});\n} catch (error) {\n  console.log("Cookie: " + error);\n}\ntry {\n  let storage_site = localStorage.getItem("sanitize");\n  if(storage_site != null && fetch_url.hostname != storage_site){\n      console.log("[UXSS] [localStorage-" + token + "] " + fetch_url.hostname + " " + storage_site)\n      return true;\n  }\n} catch (error) {\n  console.log("localStorage: " + error);\n}\n\n  try {\n    let openRequest = indexedDB.open("sanitize", 1);\n\n    openRequest.onsuccess = function(e) {\n      let db = e.target.result;\n      let transaction = db.transaction(["sanitize"], "readonly");\n      let store = transaction.objectStore("sanitize");\n      let request = store.get("sanitize");\n\n      request.onsuccess = function(e) {\n        let indexeddb_site = e.target.result.value;\n        if (fetch_url.hostname != indexeddb_site) {\n          console.log("[UXSS] [indexeddb-" + token + "] " + fetch_url.hostname + " " + indexeddb_site)\n        }\n        db.close();\n      };\n\n      request.onerror = function(e) {\n        console.log("Error reading data:", e.target.error);\n        db.close();\n      };\n    };\n\n    openRequest.onerror = function(e) {\n      console.log("Error opening database:", e.target.error);\n    };\n} catch (e) {}\n\n  try {\n    async function readOriginPrivateFilesystem(){\n      try {\n        const dirHandle = await navigator.storage.getDirectory();\n        const fileHandle = await dirHandle.getFileHandle("sanitize", {create: false});\n        const file = await fileHandle.getFile();\n        const opfs_site = await file.text();\n        if(opfs_site != "" && fetch_url.hostname != opfs_site) {\n          console.log("[UXSS] [opfs-" + token + "] " + fetch_url.hostname + " " + opfs_site);\n        }\n      } catch (error) {\n        console.log("OPFS: " + error);\n      }\n    }\n    readOriginPrivateFilesystem();\n  } catch (error) {\n    console.log("OPFS: " + error);\n  }\n  try {\n    function onFsError(error) {\n      console.log("FileSystem: " + error)\n    }\n\n    function onFileEntryRead(fe) {\n      try {\n        fe.file( (f) => {\n          f.text()\n            .then( (filesystem_site) => {\n              if(filesystem_site != "" && fetch_url.hostname != filesystem_site) {\n                console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);\n              }\n            })\n        });\n      } catch (error) {\n        console.log("FileSystem: " + error);\n      }\n    }\n\n    function onFsRead(fs) {\n      fs.root.getFile("sanitize", {create: false}, onFileEntryRead, onFsError);\n    }\n    webkitRequestFileSystem(Window.TEMPORARY, 256, onFsRead, onFsError);\n  } catch (error) {\n    console.log("OPFS: " + error);\n  }\n\n  try {\n    let hosts = ["127.0.0.1", "127.0.0.2"];\n    hosts.forEach(host => {\n      var x = new XMLHttpRequest();\n\n      x.onload = function () {\n          if (this.readyState == 4 && this.status == 200) {\n              let filesystem_site = x.responseText;\n              if (filesystem_site != "" && fetch_url.hostname != filesystem_site) {\n                  console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);\n              }\n          }\n      };\n\n      x.open("GET", "filesystem:http://" + host + ":8080/temporary/sanitize", true);\n      x.send();\n    });\n  } catch (error) {\n}\n\n  let hosts = ["127.0.0.1", "127.0.0.2"];\n  hosts.forEach(host => {\n    let url = "http://" + host + ":8080/sanitizer?nonce=" + token;\n    try {\n      fetch(url).then((response) => {\n          if (response.ok()) {\n            let text = response.text();\n            if (text.includes("127.0.0.1")) {\n              console.log("[UXSS] [fetch-" + token + "] " + host + " " + text);\n            }\n          }\n      }).catch(error => {});\n    } catch (error) {}\n\n    url = "http://" + host + ":8080/sanitizer-cookie?nonce=" + token;\n    try {\n      fetch(url, {\n        credentials: "include",\n        mode: "cors",\n      }).then((response) => {\n          if (response.ok()) {\n            let text = response.text();\n            if (text.includes("127.0.0.1")) {\n              console.log("[UXSS] [fetch-credentialed-" + token + "] " + host + " " + text);\n            }\n          }\n      }).catch(error => {});\n    } catch (error) {}\n  });\n  return false;\n}\n} catch (e) {console.log(e)}\ntry {\n	function check_iframe_site_violation(src, frame, token){\n  try {\n    let fetch_url = new URL(src);\n    let cookie_site = frame.contentWindow.document.cookie.split("; ").find((row) => row.startsWith("sanitize="))\n    if (cookie_site !== null) {\n      cookie_site = cookie_site.split("=")[1];\n      if(cookie_site != null && fetch_url.hostname != cookie_site){\n        console.log("[UXSS] [iframe-cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);\n      }\n    }\n  } catch (error) {\n    console.log("Iframe Cookie: " + error);\n  }\n}\n} catch (e) {console.log(e)}\ntry {\n	function check_window_site_violation(src, win, token){\n  try {\n    let fetch_url = new URL(src);\n    let cookie_site = win.document.cookie.split("; ").find((row) => row.startsWith("sanitize="));\n    if (cookie_site !== null) {\n      cookie_site = cookie_site.split("=")[1];\n      if(cookie_site != null && fetch_url.hostname != cookie_site){\n        console.log("[UXSS] [win-cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);\n      }\n    }\n  } catch (error) {\n    console.log("Window Cookie: " + error);\n  }\n}\n} catch (e) {console.log(e)}\n<\/script>\n</head>\n<body>\n<h1>622d65af</h1><p>foo</p>\n<script>\nasync function foo() {\n	try {\n		function check_site_violation(src, exec, token){\n\nlet fetch_url = new URL(src);\nlet exec_url = new URL(exec);\nif(fetch_url.hostname != exec_url.hostname){\n  console.log("[UXSS] [exec-" + token + "] " + fetch_url.hostname + " " + exec_url.hostname);\n  return true;\n}\n  try {\n    if(IPCFuzzer.check_isolation(src)){\n      console.log("[UXSS] [process-" + token + "] " + src);\n      return true;\n    }\n  } catch (error) {\n    console.log("Process Isolation Check: " + error);\n  }\n\ntry {\n  let cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize="));\n  if (cookie_site !== null){\n    cookie_site = cookie_site.split("=")[1];\n    if(fetch_url.hostname != cookie_site){\n      console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + cookie_site);\n      return true;\n    }\n  }\n  cookieStore.get("sanitize").then(c => {\n      if(fetch_url.hostname != c.value) {\n        console.log("[UXSS] [cookie-" + token + "] " + fetch_url.hostname + " " + c.value);\n    }\n  }).catch(e => {});\n} catch (error) {\n  console.log("Cookie: " + error);\n}\ntry {\n  let partitioned_cookie_site = document.cookie.split("; ").find((row) => row.startsWith("sanitize_partitioned="));\n  if (partitioned_cookie_site !== null){\n    partitioned_cookie_site = partitioned_cookie_site.split("=")[1];\n    if(fetch_url.hostname != partitioned_cookie_site){\n      console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + partitioned_cookie_site);\n      return true;\n    }\n  }\n  cookieStore.get("sanitize_partitioned")\n    .then(c => {\n      if(fetch_url.hostname != c.value) { console.log("[UXSS] [cookie_partitioned-" + token + "] " + fetch_url.hostname + " " + c.value);}\n    }).catch(e => {});\n} catch (error) {\n  console.log("Cookie: " + error);\n}\ntry {\n  let storage_site = localStorage.getItem("sanitize");\n  if(storage_site != null && fetch_url.hostname != storage_site){\n      console.log("[UXSS] [localStorage-" + token + "] " + fetch_url.hostname + " " + storage_site)\n      return true;\n  }\n} catch (error) {\n  console.log("localStorage: " + error);\n}\n\n  try {\n    let openRequest = indexedDB.open("sanitize", 1);\n\n    openRequest.onsuccess = function(e) {\n      let db = e.target.result;\n      let transaction = db.transaction(["sanitize"], "readonly");\n      let store = transaction.objectStore("sanitize");\n      let request = store.get("sanitize");\n\n      request.onsuccess = function(e) {\n        let indexeddb_site = e.target.result.value;\n        if (fetch_url.hostname != indexeddb_site) {\n          console.log("[UXSS] [indexeddb-" + token + "] " + fetch_url.hostname + " " + indexeddb_site)\n        }\n        db.close();\n      };\n\n      request.onerror = function(e) {\n        console.log("Error reading data:", e.target.error);\n        db.close();\n      };\n    };\n\n    openRequest.onerror = function(e) {\n      console.log("Error opening database:", e.target.error);\n    };\n} catch (e) {}\n\n  try {\n    async function readOriginPrivateFilesystem(){\n      try {\n        const dirHandle = await navigator.storage.getDirectory();\n        const fileHandle = await dirHandle.getFileHandle("sanitize", {create: false});\n        const file = await fileHandle.getFile();\n        const opfs_site = await file.text();\n        if(opfs_site != "" && fetch_url.hostname != opfs_site) {\n          console.log("[UXSS] [opfs-" + token + "] " + fetch_url.hostname + " " + opfs_site);\n        }\n      } catch (error) {\n        console.log("OPFS: " + error);\n      }\n    }\n    readOriginPrivateFilesystem();\n  } catch (error) {\n    console.log("OPFS: " + error);\n  }\n  try {\n    function onFsError(error) {\n      console.log("FileSystem: " + error)\n    }\n\n    function onFileEntryRead(fe) {\n      try {\n        fe.file( (f) => {\n          f.text()\n            .then( (filesystem_site) => {\n              if(filesystem_site != "" && fetch_url.hostname != filesystem_site) {\n                console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);\n              }\n            })\n        });\n      } catch (error) {\n        console.log("FileSystem: " + error);\n      }\n    }\n\n    function onFsRead(fs) {\n      fs.root.getFile("sanitize", {create: false}, onFileEntryRead, onFsError);\n    }\n    webkitRequestFileSystem(Window.TEMPORARY, 256, onFsRead, onFsError);\n  } catch (error) {\n    console.log("OPFS: " + error);\n  }\n\n  try {\n    let hosts = ["127.0.0.1", "127.0.0.2"];\n    hosts.forEach(host => {\n      var x = new XMLHttpRequest();\n\n      x.onload = function () {\n          if (this.readyState == 4 && this.status == 200) {\n              let filesystem_site = x.responseText;\n              if (filesystem_site != "" && fetch_url.hostname != filesystem_site) {\n                  console.log("[UXSS] [filesystem-" + token + "] " + fetch_url.hostname + " " + filesystem_site);\n              }\n          }\n      };\n\n      x.open("GET", "filesystem:http://" + host + ":8080/temporary/sanitize", true);\n      x.send();\n    });\n  } catch (error) {\n}\n\n  let hosts = ["127.0.0.1", "127.0.0.2"];\n  hosts.forEach(host => {\n    let url = "http://" + host + ":8080/sanitizer?nonce=" + token;\n    try {\n      fetch(url).then((response) => {\n          if (response.ok()) {\n            let text = response.text();\n            if (text.includes("127.0.0.1")) {\n              console.log("[UXSS] [fetch-" + token + "] " + host + " " + text);\n            }\n          }\n      }).catch(error => {});\n    } catch (error) {}\n\n    url = "http://" + host + ":8080/sanitizer-cookie?nonce=" + token;\n    try {\n      fetch(url, {\n        credentials: "include",\n        mode: "cors",\n      }).then((response) => {\n          if (response.ok()) {\n            let text = response.text();\n            if (text.includes("127.0.0.1")) {\n              console.log("[UXSS] [fetch-credentialed-" + token + "] " + host + " " + text);\n            }\n          }\n      }).catch(error => {});\n    } catch (error) {}\n  });\n  return false;\n}\n	} catch (e) {console.log(e)}\n	try {\n		check_site_violation("http://127.0.0.1:8080", location.origin, "75e61bc3");\n\n	} catch (e) {console.log(e)}\n}\nfoo();\n<\/script>\n</body>\n</html>';
+	} catch (e) {console.log(e)}
+	try {
+		var var3 = new Blob([var2], {type:'text/html'});
+	} catch (e) {console.log(e)}
+	try {
+		var var4 = URL.createObjectURL(var3);
+	} catch (e) {console.log(e)}
+	try {
+		IPCFuzzer.mutate_storage_key(var4);
+	} catch (e) {console.log(e)}
+	try {
+		var var5 = 'foo';
+	} catch (e) {console.log(e)}
+	try {
+		var var6 = new Array(window.history);
+	} catch (e) {console.log(e)}
+	try {
+		var var7 = await window.navigator.requestMediaKeySystemAccess(var5,var6);
+	} catch (e) {console.log(e)}
+}
+foo();
+</script>
+</body>
+</html>

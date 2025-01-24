@@ -1,0 +1,9 @@
+[Exposed=Window]
+interface IPCFuzzer {
+    static undefined mutate_url(DOMString url);
+    static undefined mutate_url_replace_host(DOMString host);
+    static undefined mutate_origin(DOMString url, optional boolean systemPrincipal = false);
+    static undefined mutate_origin_replace_host(DOMString host);
+    static boolean check_isolation(DOMString url);
+    static undefined deactivate_checks();
+};

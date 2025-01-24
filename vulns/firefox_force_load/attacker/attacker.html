@@ -1,0 +1,12 @@
+<html>
+  <body>
+    <h1>Attacker page</h1>
+
+    <script>
+      (async function () {
+        await window.history.replaceState("foo", "bar", null);
+        await window.location.reload();
+      })();
+    </script>
+  </body>
+</html>
