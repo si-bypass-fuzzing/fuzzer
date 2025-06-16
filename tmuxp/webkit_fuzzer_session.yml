@@ -1,0 +1,19 @@
+session_name: fuzzer session
+windows:
+    - window_name: servers
+      layout: tiled
+      shell_command_before:
+          - source .venv/bin/activate
+          - cd server
+      panes:
+          - shell_command: # pane no. 1
+                - python3.12 server.py -b "127.0.0.1" -d ./origin-1 --browser chrome
+          - shell_command: # pane no. 1
+                - python3.12 server.py -b "127.0.0.2" -d ./origin-2 -v --browser chrome
+    - window_name: fuzzer
+      layout: tiled
+      shell_command_before:
+          - source .venv/bin/activate
+      panes:
+          - shell_command: # pane no. 1
+                - python3.12 -m ipcrafter -w ./generator/webidl2json/json/chrome -m ./generator/mdn -b webkit -s ./server -o ./webkit.json -t ./browsers/webkit-ipc-fuzzing/WebKitBuild/GTK/Release/bin/MiniBrowser

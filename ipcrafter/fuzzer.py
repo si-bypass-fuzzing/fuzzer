@@ -40,10 +40,25 @@ class Fuzzer:
         browse_seeds: bool,
         url_generator: URLGenerator|None
     ) -> None:
-        if browser_type == "chrome-99":
-            asyncio.run(
-                executor_old_pw.fuzz(
-                    "chrome",
+        match browser_type:
+            case "chrome-99":
+                asyncio.run(
+                    executor_old_pw.fuzz(
+                        "chrome",
+                        remote,
+                        browser_path,
+                        log_dir,
+                        generate_callback,
+                        prune_callback,
+                        crash_callback,
+                        collect_coverage,
+                        num_iterations,
+                        browse_seeds,
+                    )
+                )
+            case "webkit":
+                executor_selenium.fuzz(
+                    "webkit",
                     remote,
                     browser_path,
                     log_dir,
@@ -54,9 +69,8 @@ class Fuzzer:
                     num_iterations,
                     browse_seeds,
                 )
-            )
-        else:
-            asyncio.run(
+            case _:
+                asyncio.run(
                 executor.fuzz(
                     browser_type,
                     remote,
