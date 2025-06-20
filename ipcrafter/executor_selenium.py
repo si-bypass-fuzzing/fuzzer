@@ -13,16 +13,18 @@ from datetime import timedelta
 from selenium import webdriver
 from selenium.webdriver.webkitgtk.options import Options
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from selenium.webdriver.common.by import By
 import io
 import random
 import time
 from pathlib import Path
 import os
+from time import sleep
 
 from .util import Ctr, MaxCtr, ResetCtr
 
-WEBKIT_PATH = Path('.') / "browsers" / "webkit-ipc-fuzzing"
-WEBKIT_BINARY_PATH = "/app/webkit/WebKitBuild/GTK/Release/bin/MiniBrowser" # this is the path inside the flatpak container
+WEBKIT_PATH = os.path.join(os.getcwd(), "browsers", "webkit-ipc-fuzzing")
+WEBKIT_BINARY_PATH = "/app/webkit/WebKitBuild/GTK/Debug/bin/MiniBrowser" # this is the path inside the flatpak container
 WEBDRIVER_PORT  = 9222
 
 TIMEOUT: int = 3
@@ -30,11 +32,13 @@ HEADLESS: bool = True
 start: float
 
 class WebDriverProcess:
-    def __init__(self):
+    def __init__(self, log_path):
         self.process = None
-        self.cmd = ["./Tools/Scripts/run-webdriver", "--release", "--gtk", f"--port {WEBDRIVER_PORT}"]
+        self.cmd = ["/usr/bin/python3", "Tools/Scripts/run-webdriver", "--debug", "--gtk", "--port", f"{WEBDRIVER_PORT}"]
         if HEADLESS:
             self.cmd.insert(0, "xvfb-run") # Safari does not support headless mode
+        self.log_path = log_path
+        self.logfile = open(self.log_path, "w")
 
     def __enter__(self):
         self._launch()
@@ -44,23 +48,45 @@ class WebDriverProcess:
         self._close()
 
     def _launch(self):
-        self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=WEBKIT_PATH)
+        logging.info("Launching webdriver process %s %s", self.cmd, WEBKIT_PATH)
+        self.process = subprocess.Popen(self.cmd, stdout=self.logfile, stderr=self.logfile, cwd=WEBKIT_PATH, text=True, env={"WEBKIT_DEBUG": "IPCFuzzer"})
+        # logging.info("WebDriver process launched with PID: %s", self.process.pid)
+        # input("Press Enter to continue...")
+        # self.debug()
 
     def _close(self):
         if self.process is not None:
+            logging.info("Killing WebDriver process with PID: %s", self.process.pid)
             self.process.kill()
             try:
                 self.process.wait(1)
             except TimeoutError:
+                logging.error("TimeoutError while waiting for process to exit")
                 pass
-        self.process = None
+
+            os.system("killall -9 WebKitWebDriver")
+            os.system("killall -9 Xvfb")
+            os.system("killall -9 xvfb-run")
+
+            self.process.kill()
+            try:
+                self.process.wait(1)
+            except TimeoutError:
+                logging.error("TimeoutError while waiting for process to exit")
+                pass
+
+            self.process = None
+            self.logfile.close()
+            # print(os.system("ps -e"))
+            # sleep(2)
 
     def logs(self):
-        if self.process is not None:
-            while (line := self.process.stdout.readline()):
-                yield line.decode('utf-8').strip()
-            while (line := self.process.stderr.readline()):
-                yield line.decode('utf-8').strip()
+        with open(self.log_path, "r") as logfile:
+            yield from logfile.readlines()
+
+    def debug(self):
+        for line in self.logs():
+            logging.info(line.strip())
 
 def selenium_logging():
     logger = logging.getLogger('selenium')
@@ -85,15 +111,15 @@ class SeleniumWrapper:
     def _launch(self):
         # cap = DesiredCapabilities().WEBKITGTK.copy()
         options = Options()
-        options.binary_location = BROWSER_BINARY_PATH
+        options.binary_location = WEBKIT_BINARY_PATH
         options.add_argument("--automation")
         options.add_argument("--features=+SiteIsolation")
-        options.add_argument("--enable-write-console-messages-to-stdout=true")
-
+        options.add_argument("--enable-write-console-messages-to-stdout=1")
         self.driver = webdriver.Remote(command_executor=f"http://127.0.0.1:{WEBDRIVER_PORT}", options=options)
 
     def _close(self):
         if self.driver:
+            logging.info("Closing Selenium driver")
             self.driver.quit()
         self.driver = None
 
@@ -122,15 +148,16 @@ def fuzz(
 
     while ctr.check():
         try:
-            with open(os.path.join(log_dir, f"browser-{ctr.i}.log"), "w") as browser_out:
-                with WebDriverProcess() as driver_process:
-                    sleep(1) # wait for the webdriver process to start
-                    with SeleniumWrapper() as driver:
-                        exec_loop(driver, driver_process, log_dir, generate_callback, prune_callback, crash_callback, ctr, browse_seeds)
+            browser_out = os.path.join(log_dir, f"browser-{ctr.i}.log")
+            with WebDriverProcess(browser_out) as driver_process:
+                sleep(2)
+                logging.info("connecting to webdriver")
+                with SeleniumWrapper() as driver:
+                    logging.info("webdriver connected")
+                    exec_loop(driver, driver_process, log_dir, generate_callback, prune_callback, crash_callback, ctr, browse_seeds)
         except Exception as e:
             logging.exception(e)
         prune_callback(True)
-        kill_webkit_processes()
 
 def visit_seeds(driver) -> None:
     for origin_id in range(1,3):
@@ -149,6 +176,8 @@ def exec_loop(
         browse_seeds: bool = True,
     ) -> None:
     logging.info("exec-loop")
+    driver.command_executor.set_timeout(3)
+
     global start
     if browse_seeds:
         visit_seeds(driver)
@@ -167,8 +196,8 @@ def exec_loop(
 
         if len(logs) == 0:
             raise Exception("Empty logs, context probably hangs")
-        logging.debug(logs)
-        if check_logs(logs):
+        # logging.info(logs)
+        if check_logs(logs, log_dir):
             crash_callback(logs)
             raise Exception("UXSS detected")
 
@@ -227,7 +256,7 @@ def click_everything(driver, recur: bool = False) -> None:
     if not recur:
         driver.switch_to.default_content()
 
-def check_logs(logs: list[str]) -> bool:
+def check_logs(logs: list[str], log_dir:str) -> bool:
     logging.info("check_logs")
     for log in logs:
         if "[UXSS]" in log:

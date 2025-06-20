@@ -1,6 +1,7 @@
 webidl2json/json
-firefox-ipc-fuzzing
-chrome-ipc-fuzzing
+browsers/firefox-ipc-fuzzing
+browsers/chrome-ipc-fuzzing
+browsers/webkit-ipc-fuzzing
 server
 crash
 logs

@@ -9,7 +9,7 @@ from .jabby.web_grammar.grammar import Grammar
 from .jabby.generator.generator import Generator
 from . import executor
 
-from . import executor_old_pw, executor_pyppeteer
+from . import executor_old_pw, executor_pyppeteer, executor_selenium
 from .util import URLGenerator
 
 PRUNE: bool = True
@@ -58,14 +58,11 @@ class Fuzzer:
                 )
             case "webkit":
                 executor_selenium.fuzz(
-                    "webkit",
-                    remote,
                     browser_path,
                     log_dir,
                     generate_callback,
                     prune_callback,
                     crash_callback,
-                    collect_coverage,
                     num_iterations,
                     browse_seeds,
                 )

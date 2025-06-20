@@ -25,7 +25,7 @@ def main():
         "--browser",
         help="browser to fuzz",
         type=str,
-        choices=["chrome", "firefox", "chrome-69", "chrome-99"],
+        choices=["chrome", "firefox", "chrome-69", "chrome-99", "webkit"],
     )
     parser.add_argument(
         "-r", "--remote", help="use remote browser", action="store_true"

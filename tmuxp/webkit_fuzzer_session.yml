@@ -16,4 +16,4 @@ windows:
           - source .venv/bin/activate
       panes:
           - shell_command: # pane no. 1
-                - python3.12 -m ipcrafter -w ./generator/webidl2json/json/chrome -m ./generator/mdn -b webkit -s ./server -o ./webkit.json -t ./browsers/webkit-ipc-fuzzing/WebKitBuild/GTK/Release/bin/MiniBrowser
+                - python3.12 -m ipcrafter -w ./generator/webidl2json/json/w3c -m ./generator/mdn -b webkit -s ./server -o ./webkit.json -t ./browsers/webkit-ipc-fuzzing/WebKitBuild/GTK/Release/bin/MiniBrowser
