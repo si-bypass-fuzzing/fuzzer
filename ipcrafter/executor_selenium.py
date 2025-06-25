@@ -49,7 +49,7 @@ class WebDriverProcess:
 
     def _launch(self):
         logging.info("Launching webdriver process %s %s", self.cmd, WEBKIT_PATH)
-        self.process = subprocess.Popen(self.cmd, stdout=self.logfile, stderr=self.logfile, cwd=WEBKIT_PATH, text=True, env={"WEBKIT_DEBUG": "IPCFuzzer"})
+        self.process = subprocess.Popen(self.cmd, stdout=self.logfile, stderr=self.logfile, cwd=WEBKIT_PATH, text=True, env={"WEBKIT_DEBUG": "IPCFuzzer"} )
         # logging.info("WebDriver process launched with PID: %s", self.process.pid)
         # input("Press Enter to continue...")
         # self.debug()
