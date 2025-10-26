@@ -1,5 +1,5 @@
 .PHONY: docker-build clean
-all: docker-run 
+all: docker-run
 
 UID = $(shell id -u)
 GID = $(shell id -g)
@@ -17,6 +17,7 @@ docker-run-root:
 docker-run:
 	docker run -it --init --rm -u user --cap-add=SYS_ADMIN \
 		-v $(PWD)/app:/app \
+		-v $(PWD)/app-67:/app-67 \
 		-v $(PWD)/../..:/fuzzer \
 		-v ~/.gitconfig:/home/user/.gitconfig:ro \
 		-v "$$SSH_AUTH_SOCK:$$SSH_AUTH_SOCK" -e SSH_AUTH_SOCK=$$SSH_AUTH_SOCK \
@@ -25,6 +26,7 @@ docker-run:
 docker-run-vnc:
 	docker run -it --init --rm -u user --cap-add=SYS_ADMIN \
 		-v $(PWD)/app:/app \
+		-v $(PWD)/app-67:/app-67 \
 		-v $(PWD)/../..:/fuzzer \
 		-v "$$SSH_AUTH_SOCK:$$SSH_AUTH_SOCK" -e SSH_AUTH_SOCK=$$SSH_AUTH_SOCK \
 		-p 5900:5900 \
@@ -34,7 +36,7 @@ docker-run-vnc:
 # clean:
 # 	-rm -rf app/*
 
-# 		--network=host 
+# 		--network=host
 #		--user $(shell id -u):$(shell id -g) \
 		#  \
 		#		--network host \

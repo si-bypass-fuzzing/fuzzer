@@ -3,22 +3,71 @@ import time
 import logging
 import os
 import argparse
+import werkzeug
+
+from gevent import pywsgi
+from geventwebsocket.handler import WebSocketHandler
 
 app = flask.Flask(__name__)
+
 
 port = 8080
 host = ""
 directory = ""
 victim = False
-browser= ""
+browser = ""
 
 MAGIC = "8bf18cb9455f4a8e8fa93d14ab5ebb5d"
 
-HTTP_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'TRACE', 'PATCH']
+HTTP_METHODS = ["GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "TRACE", "PATCH"]
+
 
 # TODO websocket
+#
+@app.route("/")
+def hello_world():
+    print(flask.request)
+    return f"Hello, idx_{host[-1]}!"
 
-@app.route('/sanitizer', methods=HTTP_METHODS)
+
+@app.errorhandler(werkzeug.exceptions.BadRequest)
+def handle_bad_request(e):
+    print(e)
+    print(flask.request.headers)
+    return "bad request!", 400
+
+
+@app.route("/ws")
+def ws_endpoint():
+    # grab the websocket object
+    ws = flask.request.environ.get("wsgi.websocket")
+    if not ws:
+        return "Expected WebSocket handshake", 400
+    # simple echo loop:
+    while True:
+        msg = ws.receive()
+        if msg is None:
+            break
+        ws.send(f"Echo: {msg}")
+    return ""
+
+
+@app.route("/redirect", methods=HTTP_METHODS)
+def redirect():
+    response = flask.Response()
+    response.headers["Location"] = f"http://127.0.0.2:8080/index.html?secret={MAGIC}"
+    response.headers["X-Frame-Options"] = "DENY"
+    return response
+
+
+@app.route("/slow", methods=HTTP_METHODS)
+def slow():
+    sleep_time = flask.request.args.get("time", default=5, type=int)
+    time.sleep(sleep_time)
+    return "Slow response"
+
+
+@app.route("/sanitizer", methods=HTTP_METHODS)
 def fetch_sanitizer():
     logging.info(f"[LOG] /sanitizer {flask.request.cookies}")
     html = f"<html>\nSANITIZER {flask.request.args.get('nonce')}\n{host}\n{MAGIC if victim and browser == 'chrome' else ''}\n</html>"
@@ -28,11 +77,12 @@ def fetch_sanitizer():
     response.headers["Expires"] = "0"
     response.headers["Access-Control-Allow-Origin"] = f"http://{host}:{port}"
     response.headers["Debug-Header"] = f"{flask.request.method} SANITIZER"
-    if victim and browser == 'chrome':
+    if victim and browser == "chrome":
         response.headers["Magic-Header"] = MAGIC
     return response
 
-@app.route('/sanitizer-cookie', methods=HTTP_METHODS)
+
+@app.route("/sanitizer-cookie", methods=HTTP_METHODS)
 def fetch_sanitizer_credentialed():
     logging.info(f"[LOG] /sanitizer-cookie {flask.request.cookies}")
     html = f"<html>\nSANITIZER COOKIE {flask.request.args.get('nonce')}\n"
@@ -46,9 +96,10 @@ def fetch_sanitizer_credentialed():
     response.headers["Access-Control-Allow-Origin"] = f"http://{host}:{port}"
     response.headers["Debug-Header"] = f"{flask.request.method} SANITIZER COOKIE"
 
-    if victim and browser == 'chrome':
+    if victim and browser == "chrome":
         response.headers["Custom-Header"] = MAGIC
     return response
+
 
 # @app.route('/sop/<name>')
 # def sop_send(name):
@@ -59,7 +110,8 @@ def fetch_sanitizer_credentialed():
 #     response.headers["X-Frame-Options"] = "SAMEORIGIN"
 #     return response
 
-@app.route('/<name>', methods=HTTP_METHODS)
+
+@app.route("/<name>", methods=HTTP_METHODS)
 def send(name):
     logging.info(f"[LOG] {name}")
     response = flask.make_response(flask.send_from_directory(directory, name))
@@ -70,12 +122,13 @@ def send(name):
     response.headers["Access-Control-Allow-Origin"] = f"http://{host}:{port}"
     response.headers["Debug-Header"] = f"{flask.request.method} {name}"
 
-    if victim and browser == 'chrome':
+    if victim and browser == "chrome":
         response.headers["Custom-Header"] = MAGIC
 
     return response
 
-@app.route('/seed')
+
+@app.route("/seed")
 def seed():
     logging.info(f"[LOG] /seed")
     response = flask.make_response(flask.send_from_directory(directory, "seed.html"))
@@ -86,12 +139,21 @@ def seed():
     response.headers["Debug-Header"] = f"{flask.request.method} SEED"
 
     if victim:
-        response.set_cookie('magic_httponly_strict', MAGIC, secure=True, httponly=True, samesite='Strict')
-        response.set_cookie('magic_httponly_lax', MAGIC, secure=True, httponly=True, samesite='Strict')
+        response.set_cookie(
+            "magic_httponly_strict",
+            MAGIC,
+            secure=True,
+            httponly=True,
+            samesite="Strict",
+        )
+        response.set_cookie(
+            "magic_httponly_lax", MAGIC, secure=True, httponly=True, samesite="Strict"
+        )
 
     return response
 
-@app.route('/<name>', methods=["OPIONS"])
+
+@app.route("/<name>", methods=["OPIONS"])
 def preflight(name):
     logging.info(f"[LOG] OPTIONS {name}")
     response = flask.make_response(204)
@@ -99,6 +161,7 @@ def preflight(name):
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     response.headers["Access-Control-Max-Age"] = "86400"
     return response
+
 
 # @app.route('/svg/<name>')
 # def svg_send(name):
@@ -116,9 +179,6 @@ def preflight(name):
 #     r = flask.Response(html, mimetype='image/svg+xml')
 #     return r
 
-@app.route('/')
-def hello_world():
-    return f'Hello, idx_{host[-1]}!'
 
 def main():
     parser = argparse.ArgumentParser(description="HTTP Server")
@@ -137,7 +197,9 @@ def main():
     global port, host, directory, victim, browser
     port = args.port
     host = args.bind
-    directory = args.dir# if os.path.isabs(args.dir) else os.path.join(os.getcwd(), args.dir)
+    directory = (
+        args.dir
+    )  # if os.path.isabs(args.dir) else os.path.join(os.getcwd(), args.dir)
     victim = args.victim
     browser = args.browser
 
@@ -149,8 +211,10 @@ def main():
     logging.info(f"[LOG] Browser: {browser}")
 
     # app.debug=True
-    app.run(host=host, port=port)
+    # app.run(host=host, port=port)
+    server = pywsgi.WSGIServer((host, port), app, handler_class=WebSocketHandler)
+    server.serve_forever()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

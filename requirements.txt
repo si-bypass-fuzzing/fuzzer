@@ -32,3 +32,6 @@ urllib3==1.26.19
 websockets==10.4
 Werkzeug==3.0.2
 zipp==3.19.2
+flask-sockets
+gevent
+gevent-websocket
