@@ -54,7 +54,9 @@ def ws_endpoint():
 
 @app.route("/redirect", methods=HTTP_METHODS)
 def redirect():
+    # CVE-2021-21175
     response = flask.Response()
+    response.headers["X-Magic"] = f"{MAGIC}"
     response.headers["Location"] = f"http://127.0.0.2:8080/index.html?secret={MAGIC}"
     response.headers["X-Frame-Options"] = "DENY"
     return response

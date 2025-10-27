@@ -20,13 +20,24 @@ from timeit import default_timer as timer
 from datetime import timedelta
 import os
 from .shm import CoverageCollector, SHM_SIZE, ShmBitmap
-from .util import Ctr, MaxCtr, ResetCtr, WebErrorHandler, ConsoleHandler, JSStatCollector, URLGenerator
+from .util import (
+    Ctr,
+    MaxCtr,
+    ResetCtr,
+    WebErrorHandler,
+    ConsoleHandler,
+    JSStatCollector,
+    URLGenerator,
+)
 
 SANDBOX: bool = False
 
 TIMEOUT: int = 3
 HEADLESS: bool = True
 start: float
+
+errors: int = 0
+timeouts: int = 0
 
 """
 const { firefox } = require('playwright');
@@ -113,12 +124,15 @@ async def fuzz(
     collect_coverage: bool,
     num_iterations: int | None,
     browse_seeds: bool = False,
-    url_generator: URLGenerator| None = None,
+    url_generator: URLGenerator | None = None,
 ):
-
     if url_generator is None:
-        url_generator = URLGenerator(lambda origin_id: URLScope.to_origin(origin_id), lambda origin_id, page_id, input_id : URLScope.to_url(origin_id, page_id, input_id))
-
+        url_generator = URLGenerator(
+            lambda origin_id: URLScope.to_origin(origin_id),
+            lambda origin_id, page_id, input_id: URLScope.to_url(
+                origin_id, page_id, input_id
+            ),
+        )
 
     # os.environ["PWDEBUG"] = "1"
     # os.environ["DEBUG"] = "pw:browser"
@@ -143,6 +157,8 @@ async def fuzz(
 
     global start
     start = timer()
+
+    global errors, timeouts
 
     ctr: Ctr
 
@@ -223,9 +239,11 @@ async def fuzz(
                         )
             except PlaywrightError as e:
                 logging.error(e)
+                errors += 1
         except Exception as e:
             # generic catch for playwright runtime errors
             logging.exception(e)
+            timeouts += 1
         prune_callback(True)
         if browser_type == "chrome":
             kill_chrome_processes()
@@ -253,7 +271,6 @@ async def exec_loop(
     browse_seeds: bool,
     url_generator: URLGenerator,
 ) -> None:
-
     async with BrowserContextWrapper(
         await browser.new_context(), browser_type
     ) as context:
@@ -272,7 +289,6 @@ async def exec_loop(
             except asyncio.TimeoutError:
                 logging.warning("Testcase Timeout")
 
-
         console_handler: ConsoleHandler = ConsoleHandler()
 
         while ctr.step():
@@ -284,7 +300,9 @@ async def exec_loop(
                 print("URL", url_generator.get_url(1, 1, input_id))
                 attacker_url = url_generator.get_url(1, 1, input_id)
                 victim_url = url_generator.get_url(2, 1, input_id)
-                await execute(context, attacker_url, victim_url, console_handler, browse_seeds)
+                await execute(
+                    context, attacker_url, victim_url, console_handler, browse_seeds
+                )
 
             except Exception as e:
                 logging.error(e)
@@ -318,9 +336,21 @@ async def exec_loop(
 
             current: float = timer()
             logging.info(f"Iteration: {ctr.value()}")
-            logging.info(f"Time elapsed: {timedelta(seconds=current-start)}")
+            logging.info(f"Time elapsed: {timedelta(seconds=current - start)}")
             logging.info(f"Average time: {(current - start) / ctr.value():.2f} seconds")
+            logging.info(f"Errors: {errors}")
+            logging.info(f"Timeouts: {timeouts}")
             logging.info(stat_collector.log())
+
+            with open("fuzzer.log", "w") as f:
+                f.write(f"""
+                    Iteration: {ctr.value()}
+                    Time elapsed: {timedelta(seconds=current - start)}
+                    Average time: {(current - start) / ctr.value():.2f} seconds
+                    Errors: {errors}
+                    Timeouts: {timeouts}
+                    {stat_collector.log()}
+                """)
 
 
 async def cleanup(context: BrowserContext, keep_seeds: bool) -> None:
@@ -335,7 +365,7 @@ async def execute(
     attacker_url: str,
     victim_url: str,
     console_handler: ConsoleHandler,
-    keep_seeds:bool
+    keep_seeds: bool,
 ) -> None:
     console_handler.clear()
     context.on("console", console_handler.handle)
