@@ -4,6 +4,7 @@ import logging
 from typing import Callable
 import traceback
 
+
 class WebErrorHandler:
     THRESHOLD = 100
 
@@ -14,6 +15,7 @@ class WebErrorHandler:
         self.num += 1
         if self.num > WebErrorHandler.THRESHOLD:
             raise Exception("Weberrors exceeded threshold")
+
 
 class ConsoleHandler:
     def __init__(self):
@@ -34,9 +36,10 @@ class ConsoleHandler:
     def clear(self):
         self.logs = []
 
+
 class JSStatCollector:
     def __init__(self):
-        self.exceptions: dict[str,int] = {}
+        self.exceptions: dict[str, int] = {}
         self.num_stmts: int = 0
         self.num_excepts: int = 0
 
@@ -49,6 +52,7 @@ class JSStatCollector:
 
     def log(self):
         return f"excepts: {self.num_excepts} stmts: {self.num_stmts}"
+
 
 class Ctr:
     def __init__(self):
@@ -64,6 +68,7 @@ class Ctr:
     def value(self) -> int:
         return self.i
 
+
 class MaxCtr(Ctr):
     def __init__(self, max: int):
         super().__init__()
@@ -76,10 +81,11 @@ class MaxCtr(Ctr):
     def check(self) -> bool:
         return self.i < self.max
 
+
 class ResetCtr(Ctr):
-    def __init__(self, interval:int = 50):
+    def __init__(self, interval: int = 50):
         super().__init__()
-        self.interval:int = interval
+        self.interval: int = interval
 
     def step(self) -> bool:
         self.i += 1
@@ -88,6 +94,21 @@ class ResetCtr(Ctr):
     def check(self) -> bool:
         return True
 
+
+class Timer(Ctr):
+    def __init__(self, duration: int):
+        super().__init__()
+        self.duration: int = duration
+        self.start_time: float = time.time()
+
+    def step(self) -> bool:
+        self.i += 1
+        return time.time() - self.start_time < self.duration
+
+    def check(self) -> bool:
+        return time.time() - self.start_time < self.duration
+
+
 class DMSException(Exception):
     def __init__(self, message):
         super().__init__(message)
@@ -95,6 +116,7 @@ class DMSException(Exception):
 
     def __str__(self):
         return "DMSException: " + self.message
+
 
 class DeadMansSwitch:
     def __init__(self, timeout, kill: Callable[[], None] | None = None):
@@ -122,10 +144,15 @@ class DeadMansSwitch:
             self.kill()
         logging.error("DMS")
         # traceback.print_stack()
-        raise DMSException("Dead man's switch triggered: loop has not sent a signal for the specified timeout period.")
+        raise DMSException(
+            "Dead man's switch triggered: loop has not sent a signal for the specified timeout period."
+        )
+
 
 class URLGenerator:
-    def __init__(self, to_origin: Callable[[int], str], to_url: Callable[[int,int,int], str]):
+    def __init__(
+        self, to_origin: Callable[[int], str], to_url: Callable[[int, int, int], str]
+    ):
         self.to_origin = to_origin
         self.to_url = to_url
 

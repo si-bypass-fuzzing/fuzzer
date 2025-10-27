@@ -24,6 +24,7 @@ from .util import (
     Ctr,
     MaxCtr,
     ResetCtr,
+    Timer,
     WebErrorHandler,
     ConsoleHandler,
     JSStatCollector,
@@ -125,6 +126,7 @@ async def fuzz(
     num_iterations: int | None,
     browse_seeds: bool = False,
     url_generator: URLGenerator | None = None,
+    max_duration: int | None = None,
 ):
     if url_generator is None:
         url_generator = URLGenerator(
@@ -164,6 +166,8 @@ async def fuzz(
 
     if num_iterations is not None:
         ctr = MaxCtr(num_iterations)
+    elif max_duration is not None:
+        ctr = Timer(max_duration)
     else:
         ctr = ResetCtr()
 
@@ -343,14 +347,12 @@ async def exec_loop(
             logging.info(stat_collector.log())
 
             with open("fuzzer.log", "w") as f:
-                f.write(f"""
-                    Iteration: {ctr.value()}
-                    Time elapsed: {timedelta(seconds=current - start)}
-                    Average time: {(current - start) / ctr.value():.2f} seconds
-                    Errors: {errors}
-                    Timeouts: {timeouts}
-                    {stat_collector.log()}
-                """)
+                f.write(f"""Iteration: {ctr.value()}
+Time elapsed: {timedelta(seconds=current - start)}
+Average time: {(current - start) / ctr.value():.2f} seconds
+Errors: {errors}
+Timeouts: {timeouts}
+{stat_collector.log()}""")
 
 
 async def cleanup(context: BrowserContext, keep_seeds: bool) -> None:

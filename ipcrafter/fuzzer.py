@@ -38,7 +38,8 @@ class Fuzzer:
         collect_coverage: bool,
         num_iterations: int | None,
         browse_seeds: bool,
-        url_generator: URLGenerator|None
+        url_generator: URLGenerator | None,
+        max_duration: int | None,
     ) -> None:
         match browser_type:
             case "chrome-99":
@@ -68,20 +69,21 @@ class Fuzzer:
                 )
             case _:
                 asyncio.run(
-                executor.fuzz(
-                    browser_type,
-                    remote,
-                    browser_path,
-                    log_dir,
-                    generate_callback,
-                    prune_callback,
-                    crash_callback,
-                    collect_coverage,
-                    num_iterations,
-                    browse_seeds,
-                    url_generator
+                    executor.fuzz(
+                        browser_type,
+                        remote,
+                        browser_path,
+                        log_dir,
+                        generate_callback,
+                        prune_callback,
+                        crash_callback,
+                        collect_coverage,
+                        num_iterations,
+                        browse_seeds,
+                        url_generator,
+                        max_duration,
+                    )
                 )
-            )
 
 
 class IPCFuzzer(Fuzzer):
@@ -103,7 +105,9 @@ class IPCFuzzer(Fuzzer):
         if grammar_output_path is not None:
             logging.info("Write grammar to %s", grammar_output_path)
             self.grammar.write(grammar_output_path)
-        self.generator: Generator = Generator("chrome" if browser == "chrome-99" else browser, self.grammar, server_dir)
+        self.generator: Generator = Generator(
+            "chrome" if browser == "chrome-99" else browser, self.grammar, server_dir
+        )
         self.server_dir: str = server_dir
         self.crash_dir: str = crash_dir
         self.log_dir: str = log_dir
@@ -119,9 +123,9 @@ class IPCFuzzer(Fuzzer):
         browser_path: str,
         collect_coverage: bool,
         num_iterations: int | None,
+        max_duration: int | None,
         browse_seeds: bool = True,
     ) -> None:
-
         self.generator.create_output_dirs()
         self.generator.generate_seed_pages()
 
@@ -168,10 +172,12 @@ class IPCFuzzer(Fuzzer):
             collect_coverage,
             num_iterations,
             browse_seeds,
-            None
+            None,
+            max_duration,
         )
 
-class PyppeteerFuzzer():
+
+class PyppeteerFuzzer:
     def __init__(
         self,
         webidl_path: str,
@@ -182,6 +188,7 @@ class PyppeteerFuzzer():
         grammar_output_path: str | None = None,
     ):
         from . import executor_pyppeteer
+
         self.browser = "chrome"
         self.grammar: Grammar = Grammar()
         self.grammar.parse_dir(webidl_path)
@@ -199,7 +206,8 @@ class PyppeteerFuzzer():
 
         self.input_id: int = 0
 
-    def fuzz(self,
+    def fuzz(
+        self,
         browser_path: str,
         num_iterations: int | None,
         browse_seeds: bool = True,
@@ -246,7 +254,7 @@ class PyppeteerFuzzer():
             prune,
             save_crash,
             num_iterations,
-            browse_seeds
+            browse_seeds,
         )
 
     def run(
@@ -267,7 +275,7 @@ class PyppeteerFuzzer():
                 prune_callback,
                 crash_callback,
                 num_iterations,
-                browse_seeds
+                browse_seeds,
             ),
-            debug=True
+            debug=True,
         )
