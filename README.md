@@ -14,7 +14,7 @@ We patched Chrome and Firefox to add our Site Isolation bypass bug oracles and t
 - `server/`: The webserver hosting the fuzzer inputs
 
 ## Other repositories
-- [chromium](https://github.com/si-bypass-fuzzing/chromium) patched Chromium with sanitizers and fuzzer bindings in branches `patch/current`, `patch/69`, and `patch/99`.
+- [chromium](https://github.com/si-bypass-fuzzing/chromium) patched Chromium with sanitizers and fuzzer bindings in branches `ipc-fuzzer/current` and `patch/...`.
 - [gecko-dev](https://github.com/si-bypass-fuzzing/gecko-dev) patched Firefox with sanitizers and fuzzer bindings in branch `patch/125`
 - [webidl.js](https://github.com/si-bypass-fuzzing/webidl2.js) patched WebIDL parser, used to convert `.idl` files to json
 - [fuzzorigin](https://github.com/si-bypass-fuzzing/fuzzorigin) UXSS fuzzer by Kim et al., patched to run in our evaluation environment
