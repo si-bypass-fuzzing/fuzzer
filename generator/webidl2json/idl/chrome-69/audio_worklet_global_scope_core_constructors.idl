@@ -1,0 +1,9 @@
+[
+    ImplementedAs=audio_worklet_global_scope_core_constructors
+] partial interface AudioWorkletGlobalScope {
+    attribute EventConstructor Event;
+    attribute EventTargetConstructor EventTarget;
+    attribute MessageEventConstructor MessageEvent;
+    attribute MessagePortConstructor MessagePort;
+    attribute WorkletGlobalScopeConstructor WorkletGlobalScope;
+};

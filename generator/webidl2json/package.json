@@ -1,0 +1,16 @@
+{
+    "name": "webidl2json",
+    "version": "1.0.0",
+    "description": "Command line tool to parse webidl files and convert them to JSON",
+    "main": "parse.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "Jan Niklas Drescher",
+    "license": "ISC",
+    "dependencies": {
+        "fs-extra": "^11.2.0",
+        "@ias/webidl2": "24.4.6"
+    }
+}

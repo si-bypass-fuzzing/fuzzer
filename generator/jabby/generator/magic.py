@@ -1,0 +1,1 @@
+MAGIC:str = "8bf18cb9455f4a8e8fa93d14ab5ebb5d" # UUID

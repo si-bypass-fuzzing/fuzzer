@@ -1,0 +1,5 @@
+[
+    ImplementedAs=animation_worklet_global_scope_core_constructors
+] partial interface AnimationWorkletGlobalScope {
+    attribute WorkletGlobalScopeConstructor WorkletGlobalScope;
+};

@@ -1,0 +1,9 @@
+
+[Exposed=Window] interface IPCFuzzer {
+    static undefined mutate_url(DOMString new_url);
+    static undefined mutate_url_replace_host(DOMString new_host);
+    static undefined mutate_origin_replace_host(DOMString new_host);
+    static boolean check_isolation(DOMString site_url);
+    static undefined deactivate_checks();
+    static undefined activate_leak_sanitizer();
+};

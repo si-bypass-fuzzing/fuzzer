@@ -1,0 +1,15 @@
+[Exposed=*]
+interface IPCFuzzer {
+    [CallWith=ExecutionContext] static void send_detach();
+    static void mutate_url(DOMString new_url);
+    static void mutate_url_replace_host(DOMString new_host);
+    static void mutate_origin_replace_host(DOMString new_host);
+    static void mutate_site_for_cookies(DOMString new_url);
+    static void mutate_site_for_cookies_replace_host(DOMString new_host);
+    static void mutate_schemeful_site(DOMString new_url);
+    static void mutate_schemeful_site_replace_host(DOMString new_host);
+    static void mutate_storage_key(DOMString new_url);
+    static void mutate_storage_key_replace_host(DOMString new_host);
+    static boolean check_isolation(DOMString site_url);
+    static void deactivate_checks();
+};
