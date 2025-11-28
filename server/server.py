@@ -52,14 +52,30 @@ def ws_endpoint():
     return ""
 
 
+# @app.route("/redirect", methods=HTTP_METHODS)
+# def redirect():
+#     # CVE-2021-21175
+#     response = flask.Response()
+#     response.headers["X-Magic"] = f"{MAGIC}"
+#     response.headers["Location"] = f"http://127.0.0.2:8080/index.html?secret={MAGIC}"
+#     response.headers["X-Frame-Options"] = "DENY"
+#     return response
+
+
 @app.route("/redirect", methods=HTTP_METHODS)
 def redirect():
-    # CVE-2021-21175
-    response = flask.Response()
-    response.headers["X-Magic"] = f"{MAGIC}"
-    response.headers["Location"] = f"http://127.0.0.2:8080/index.html?secret={MAGIC}"
-    response.headers["X-Frame-Options"] = "DENY"
+    # CVE-2019-5865
+    response = flask.Response(status=301)
+    response.headers["Location"] = "http://127.0.0.1:8080/target"
     return response
+
+
+@app.route("/target", methods=HTTP_METHODS)
+def target():
+    # CVE-2019-5865
+    print(flask.request)
+    print(flask.request.headers)
+    return "hello"
 
 
 @app.route("/slow", methods=HTTP_METHODS)
@@ -113,7 +129,7 @@ def fetch_sanitizer_credentialed():
 #     return response
 
 
-@app.route("/<name>", methods=HTTP_METHODS)
+@app.route("/<path:name>", methods=HTTP_METHODS)
 def send(name):
     logging.info(f"[LOG] {name}")
     response = flask.make_response(flask.send_from_directory(directory, name))
