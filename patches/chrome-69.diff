@@ -1,0 +1,1837 @@
+diff --git a/DEPS b/DEPS
+index 387642afbe5a2..dc4496923e5d3 100644
+--- a/DEPS
++++ b/DEPS
+@@ -567,8 +567,8 @@ deps = {
+   'src/third_party/depot_tools':
+     Var('chromium_git') + '/chromium/tools/depot_tools.git' + '@' + '5deb1755347167bfe726d33e3bc94cfb81896315',
+ 
+-  'src/third_party/devtools-node-modules':
+-    Var('chromium_git') + '/external/github.com/ChromeDevTools/devtools-node-modules' + '@' + Var('devtools_node_modules_revision'),
++  # 'src/third_party/devtools-node-modules':
++  #   Var('chromium_git') + '/external/github.com/ChromeDevTools/devtools-node-modules' + '@' + Var('devtools_node_modules_revision'),
+ 
+   'src/third_party/dom_distiller_js/dist':
+     Var('chromium_git') + '/chromium/dom-distiller/dist.git' + '@' + '60b46718e28f553ab57e3d2bbda5b3b41456f417',
+diff --git a/content/renderer/blob_storage/webblobregistry_impl.cc b/content/renderer/blob_storage/webblobregistry_impl.cc
+index aefbf0d321ea3..8d6cbe92b03fc 100644
+--- a/content/renderer/blob_storage/webblobregistry_impl.cc
++++ b/content/renderer/blob_storage/webblobregistry_impl.cc
+@@ -11,6 +11,8 @@
+ #include "third_party/blink/public/platform/web_string.h"
+ #include "third_party/blink/public/platform/web_url.h"
+ 
++#include "third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer_core.h"
++
+ using blink::WebString;
+ using blink::WebURL;
+ 
+@@ -26,11 +28,14 @@ WebBlobRegistryImpl::WebBlobRegistryImpl(scoped_refptr<ThreadSafeSender> sender)
+ WebBlobRegistryImpl::~WebBlobRegistryImpl() {
+ }
+ 
+-void WebBlobRegistryImpl::RegisterPublicBlobURL(const WebURL& url,
++void WebBlobRegistryImpl::RegisterPublicBlobURL(const WebURL& url_original,
+                                                 const WebString& uuid) {
+   // Measure how much jank the following synchronous IPC introduces.
+   SCOPED_UMA_HISTOGRAM_TIMER("Storage.Blob.RegisterPublicURLTime");
+ 
++  std::unique_ptr<const WebURL> url_mutated = ::blink::IPCFuzzerCore::GetInstance()->mutate_web_url_hook(url_original);
++  const WebURL& url = (url_mutated != nullptr) ? *url_mutated : url_original;
++
+   sender_->Send(new BlobHostMsg_RegisterPublicURL(url, uuid.Utf8()));
+ }
+ 
+diff --git a/mojo/public/cpp/bindings/lib/message.cc b/mojo/public/cpp/bindings/lib/message.cc
+index 8972d9efd1d98..d7026be1b36ce 100644
+--- a/mojo/public/cpp/bindings/lib/message.cc
++++ b/mojo/public/cpp/bindings/lib/message.cc
+@@ -22,6 +22,7 @@
+ #include "mojo/public/cpp/bindings/lib/unserialized_message_context.h"
+ 
+ namespace mojo {
++  void (*leakSanitizerCallback)(const char* data, size_t data_len) = nullptr;
+ 
+ namespace {
+ 
+@@ -235,6 +236,10 @@ Message::Message(ScopedMessageHandle handle) {
+       return;
+     }
+ 
++    if (::mojo::leakSanitizerCallback != nullptr) {
++      (*::mojo::leakSanitizerCallback)((char*)(buffer), num_bytes);
++    }
++
+     payload_buffer_ = internal::Buffer(buffer, num_bytes, num_bytes);
+     serialized_ = true;
+   } else {
+diff --git a/mojo/public/cpp/bindings/message.h b/mojo/public/cpp/bindings/message.h
+index 7f6e3ea436cea..9bce329fff515 100644
+--- a/mojo/public/cpp/bindings/message.h
++++ b/mojo/public/cpp/bindings/message.h
+@@ -25,6 +25,8 @@
+ #include "mojo/public/cpp/system/message.h"
+ 
+ namespace mojo {
++  extern void (*leakSanitizerCallback)(const char*, size_t);
++
+ 
+ class AssociatedGroupController;
+ 
+diff --git a/mojo/public/tools/bindings/BUILD.gn b/mojo/public/tools/bindings/BUILD.gn
+index 49796173033fc..dcf31d240fc71 100644
+--- a/mojo/public/tools/bindings/BUILD.gn
++++ b/mojo/public/tools/bindings/BUILD.gn
+@@ -68,6 +68,7 @@ action("precompile_templates") {
+     "$mojom_generator_root/generators/js_templates/struct_definition.tmpl",
+     "$mojom_generator_root/generators/js_templates/union_definition.tmpl",
+     "$mojom_generator_root/generators/js_templates/validation_macros.tmpl",
++    "$mojom_generator_root/generators/cpp_templates/interface_fuzzer.tmpl",
+   ]
+   script = mojom_generator_script
+ 
+diff --git a/mojo/public/tools/bindings/generators/cpp_templates/interface_definition.tmpl b/mojo/public/tools/bindings/generators/cpp_templates/interface_definition.tmpl
+index 72c3101c14221..6b26eb9485d82 100644
+--- a/mojo/public/tools/bindings/generators/cpp_templates/interface_definition.tmpl
++++ b/mojo/public/tools/bindings/generators/cpp_templates/interface_definition.tmpl
+@@ -1,10 +1,13 @@
+ {%- import "interface_macros.tmpl" as interface_macros %}
+ {%- import "struct_macros.tmpl" as struct_macros %}
++{%- import "interface_fuzzer.tmpl" as interface_fuzzer %}
+ 
+ {%- set class_name = interface.name %}
+ {%- set proxy_name = interface.name ~ "Proxy" %}
+ {%- set namespace_as_string = "%s"|format(namespace|replace(".","::")) %}
+ 
++{%- set qualified_class_name = ("::" ~ namespace_as_string if namespace_as_string) ~ ("::" ~ variant if variant) ~ "::" ~ class_name %}
++
+ {%- macro alloc_params(struct, params, message, description) %}
+   mojo::internal::SerializationContext serialization_context;
+   serialization_context.TakeHandlesFromMessage({{message}});
+@@ -120,8 +123,9 @@ class {{class_name}}_{{method.name}}_ForwardToCallback
+ {%-   endif %}
+ 
+ {%-   if method.sync %}
+-bool {{proxy_name}}::{{method.name}}(
+-    {{interface_macros.declare_sync_method_params("param_", method)}}) {
++bool {{proxy_name}}::{{method.name}}({{interface_fuzzer.declare_sync_method_params_fuzzed(qualified_class_name,"param_", method)}}) {
++{{interface_fuzzer.insert_fuzzer_hook(qualified_class_name,"param_", method.parameters, method.name)}}
++// WORK
+ #if BUILDFLAG(MOJO_TRACE_ENABLED)
+   TRACE_EVENT0("mojom", "{{namespace_as_string}}::{{class_name}}::{{method.name}}");
+ #endif
+@@ -159,8 +163,9 @@ bool {{proxy_name}}::{{method.name}}(
+ }
+ {%-   endif %}
+ 
+-void {{proxy_name}}::{{method.name}}(
+-    {{interface_macros.declare_request_params("in_", method, use_once_callback)}}) {
++void {{proxy_name}}::{{method.name}}({{interface_fuzzer.declare_request_params_fuzzed(qualified_class_name, "in_", method, use_once_callback)}}) {
++{{interface_fuzzer.insert_fuzzer_hook(qualified_class_name,"in_", method.parameters, method.name)}}
++// WORK
+ #if BUILDFLAG(MOJO_TRACE_ENABLED)
+   TRACE_EVENT0("mojom", "{{namespace_as_string}}::{{class_name}}::{{method.name}}");
+ #endif
+diff --git a/mojo/public/tools/bindings/generators/cpp_templates/interface_fuzzer.tmpl b/mojo/public/tools/bindings/generators/cpp_templates/interface_fuzzer.tmpl
+new file mode 100644
+index 0000000000000..2836970c59b9e
+--- /dev/null
++++ b/mojo/public/tools/bindings/generators/cpp_templates/interface_fuzzer.tmpl
+@@ -0,0 +1,117 @@
++{%- import "interface_macros.tmpl" as interface_macros %}
++
++{# "::network::mojom::blink::NetworkContext" #}
++{%- set classes_to_fuzz = ["::blink::mojom::blink::BlobRegistry", "::blink::mojom::blink::BlobURLStore", "::network::mojom::blink::RestrictedCookieManager", "::blink::mojom::blink::FileSystemManager", "::indexed_db::mojom::Factory"] %}
++{%- set other_classes = ["::content_settings::mojom::ContentSettingsManager", "::content::mojom::FrameHost", "::network::mojom::blink::NetworkContext", "::blink::mojom::blink::DomStorage", "::network::mojom::blink::URLLoaderFactory", "::blink::mojom::blink::RemoteFrameHost", "blink::mojom::blink::LocalFrameHost"] %}
++
++{%- macro insert_fuzzer_hook(qualified_class_name, prefix, parameters, method_name) %}
++// {{qualified_class_name}}
++// DLOG(INFO) << "{{qualified_class_name}} {{method_name}}" << std::endl;
++
++{# log all IPC calls that have interesting parameters #}
++{%-   for param in parameters %}
++{%-   if param.is_mutated or param.is_interesting  %}
++{# DLOG(INFO) << "PARAM {{qualified_class_name}}::{{method_name}}() - {{param.kind|cpp_wrapper_param_type}} {{prefix}}{{param.name}}"; #}
++{%-   endif %}
++{%-   endfor %}
++
++{%- if qualified_class_name in classes_to_fuzz %}
++// FUZZME
++{# DLOG(INFO) << "IPCFuzzer intercept function: {{qualified_class_name}}::{{method_name}}()"; #}
++{%-   for param in parameters %}
++// {{param.internal}} {{param.kind|cpp_wrapper_param_type}}
++{%-   if param.is_mutated  %}
++{%- if param.kind|cpp_wrapper_param_type == "const ::blink::KURL&" %}
++std::unique_ptr<const ::blink::KURL> {{prefix}}{{param.name}}_mutated = ::blink::IPCFuzzerCore::GetInstance()->mutate_kurl_hook({{prefix}}{{param.name}}_original);
++const ::blink::KURL& {{prefix}}{{param.name}} = ({{prefix}}{{param.name}}_mutated != nullptr) ? *{{prefix}}{{param.name}}_mutated : {{prefix}}{{param.name}}_original;
++{%- elif param.kind|cpp_wrapper_param_type == "const ::GURL&" %}
++std::unique_ptr<const ::GURL> {{prefix}}{{param.name}}_mutated = ::blink::IPCFuzzerCore::GetInstance()->mutate_gurl_hook({{prefix}}{{param.name}}_original);
++const ::GURL& {{prefix}}{{param.name}} = ({{prefix}}{{param.name}}_mutated != nullptr) ? *{{prefix}}{{param.name}}_mutated : {{prefix}}{{param.name}}_original;
++{%- elif param.kind|cpp_wrapper_param_type == "const ::net::SiteForCookies&" %}
++std::unique_ptr<const ::net::SiteForCookies> {{prefix}}{{param.name}}_mutated = ::blink::IPCFuzzerCore::GetInstance()->mutate_site_for_cookies_hook({{prefix}}{{param.name}}_original);
++const ::net::SiteForCookies& {{prefix}}{{param.name}} = ({{prefix}}{{param.name}}_mutated != nullptr) ? *{{prefix}}{{param.name}}_mutated : {{prefix}}{{param.name}}_original;
++{%- elif param.kind|cpp_wrapper_param_type == "const scoped_refptr<const ::blink::SecurityOrigin>&" %}
++::scoped_refptr<const ::blink::SecurityOrigin> {{prefix}}{{param.name}}_mutated = ::blink::IPCFuzzerCore::GetInstance()->mutate_security_origin_hook({{prefix}}{{param.name}}_original);
++const scoped_refptr<const ::blink::SecurityOrigin>& {{prefix}}{{param.name}} = ({{prefix}}{{param.name}}_mutated != nullptr) ? {{prefix}}{{param.name}}_mutated : {{prefix}}{{param.name}}_original;
++{%- elif param.kind|cpp_wrapper_param_type == "const absl::optional<::blink::BlinkSchemefulSite>&" %}
++absl::optional<::blink::BlinkSchemefulSite> {{prefix}}{{param.name}}_mutated = ::blink::IPCFuzzerCore::GetInstance()->mutate_schemeful_site_hook({{prefix}}{{param.name}}_original);
++const absl::optional<::blink::BlinkSchemefulSite>& {{prefix}}{{param.name}} = ({{prefix}}{{param.name}}_mutated.has_value()) ? {{prefix}}{{param.name}}_mutated : {{prefix}}{{param.name}}_original;
++{%- elif param.kind|cpp_wrapper_param_type == "const ::blink::BlinkStorageKey&" %}
++std::unique_ptr<const ::blink::BlinkStorageKey> {{prefix}}{{param.name}}_mutated = ::blink::IPCFuzzerCore::GetInstance()->mutate_storage_key_hook({{prefix}}{{param.name}}_original);
++const ::blink::BlinkStorageKey& {{prefix}}{{param.name}} = ({{prefix}}{{param.name}}_mutated != nullptr) ? *{{prefix}}{{param.name}}_mutated : {{prefix}}{{param.name}}_original;
++{%- elif param.kind|cpp_wrapper_param_type == "const ::url::Origin&" or  param.kind|cpp_wrapper_param_type == "const url::Origin&"%}
++std::unique_ptr<const ::url::Origin> {{prefix}}{{param.name}}_mutated = ::blink::IPCFuzzerCore::GetInstance()->mutate_origin_hook({{prefix}}{{param.name}}_original);
++const ::url::Origin& {{prefix}}{{param.name}} = ({{prefix}}{{param.name}}_mutated != nullptr) ? *{{prefix}}{{param.name}}_mutated : {{prefix}}{{param.name}}_original;
++{%- endif %}
++{%-   endif %}
++{%-   endfor %}
++{%-   endif %} {#- if qualified_class_name in classes_to_fuzz #}
++{%- endmacro %}
++
++
++{%- macro insert_fuzzer_dependency(all_interfaces, all_namespaces, variant) %}
++{%- set insert_condition = namespace(bool=false) %}
++{%- set class_namespace = "::" %}
++{%- if all_namespaces|length > 1 %}
++{%- set class_namespace = class_namespace ~ all_namespaces|join("::") ~ "::" ~ (variant ~ "::" if variant) %}
++{%- endif %}
++
++{%- for interface in all_interfaces %}
++{%- set class_name = interface.name %}
++{%- set qualified_class_name = class_namespace ~ class_name %}
++  {%- if qualified_class_name in classes_to_fuzz %}
++    {%- set insert_condition.bool = true %}
++  {%- endif %}
++{%- endfor %}
++
++{%-   if insert_condition.bool  %}
++#include "base/logging.h"
++#include "third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer_core.h"
++{%-   endif %} {#- if insert_condition.bool #}
++{%- endmacro %}
++
++{%- macro declare_params_mutated(prefix, parameters) %}
++{%-   for param in parameters -%}
++{{param.kind|cpp_wrapper_param_type}} {{prefix}}{{param.name}}{{"_original" if param.is_mutated else ""}}
++{%- if not loop.last %}, {% endif %}
++{%-   endfor %}
++{%- endmacro %}
++
++{%- macro declare_sync_method_params_mutated(prefix, method) -%}
++{{declare_params_mutated(prefix, method.parameters)}}
++{%-   if method.response_parameters %}
++{%-     if method.parameters %}, {% endif %}
++{%-     for param in method.response_parameters -%}
++{{param.kind|cpp_wrapper_call_type}}* out_{{prefix}}{{param.name}}
++{%-       if not loop.last %}, {% endif %}
++{%-     endfor %}
++{%-   endif -%}
++{%- endmacro -%}
++
++{%- macro declare_request_params_mutated(prefix, method, use_once_callback) -%}
++{{declare_params_mutated(prefix, method.parameters)}}
++{%-   if method.response_parameters != None -%}
++{%-     if method.parameters %}, {% endif -%}
++{%-     if use_once_callback -%}
++{{method.name}}Callback callback
++{%-  else   -%}
++const {{method.name}}Callback& callback
++{%-   endif -%}
++{%-   endif -%}
++{%- endmacro -%}
++
++{%- macro declare_request_params_fuzzed(qualified_class_name, prefix, method, use_once_callback) -%}
++{%- if qualified_class_name in classes_to_fuzz %}
++{{declare_request_params_mutated(prefix, method, use_once_callback)}}
++{%- else %}
++{{interface_macros.declare_request_params(prefix, method, use_once_callback)}}
++{%- endif %}
++{%- endmacro -%}
++
++{%- macro declare_sync_method_params_fuzzed(qualified_class_name, prefix, method) -%}
++{%- if qualified_class_name in classes_to_fuzz %}
++{{declare_sync_method_params_mutated(prefix, method)}}
++{%- else %}
++{{interface_macros.declare_sync_method_params(prefix, method)}}
++{%- endif %}
++{%- endmacro -%}
+diff --git a/mojo/public/tools/bindings/generators/cpp_templates/module-shared.cc.tmpl b/mojo/public/tools/bindings/generators/cpp_templates/module-shared.cc.tmpl
+index 6004c52138898..0db217ae4e4e1 100644
+--- a/mojo/public/tools/bindings/generators/cpp_templates/module-shared.cc.tmpl
++++ b/mojo/public/tools/bindings/generators/cpp_templates/module-shared.cc.tmpl
+@@ -1,6 +1,7 @@
+ // Copyright 2016 The Chromium Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
++{%- import "interface_fuzzer.tmpl" as interface_fuzzer %}
+ 
+ #if defined(_MSC_VER)
+ #pragma warning(push)
+@@ -21,6 +22,8 @@
+ #include "{{header}}"
+ {%- endfor %}
+ 
++{#---  {{interface_fuzzer.insert_fuzzer_dependency(interfaces, namespaces_as_array)}} #}
++
+ {%- for namespace in namespaces_as_array %}
+ namespace {{namespace}} {
+ {%- endfor %}
+@@ -60,4 +63,3 @@ namespace internal {
+ #if defined(_MSC_VER)
+ #pragma warning(pop)
+ #endif
+-
+diff --git a/mojo/public/tools/bindings/generators/cpp_templates/module.cc.tmpl b/mojo/public/tools/bindings/generators/cpp_templates/module.cc.tmpl
+index 16f3bafa82f11..0743ff3000349 100644
+--- a/mojo/public/tools/bindings/generators/cpp_templates/module.cc.tmpl
++++ b/mojo/public/tools/bindings/generators/cpp_templates/module.cc.tmpl
+@@ -1,6 +1,7 @@
+ // Copyright 2013 The Chromium Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
++{%- import "interface_fuzzer.tmpl" as interface_fuzzer %}
+ 
+ {%- if variant -%}
+ {%-   set variant_path = "%s-%s"|format(module.path, variant) -%}
+@@ -44,6 +45,8 @@
+ #include "{{header}}"
+ {%- endfor %}
+ 
++{{interface_fuzzer.insert_fuzzer_dependency(interfaces, namespaces_as_array, variant)}}
++
+ {%- for namespace in namespaces_as_array %}
+ namespace {{namespace}} {
+ {%- endfor %}
+diff --git a/mojo/public/tools/bindings/pylib/mojom/generate/module.py b/mojo/public/tools/bindings/pylib/mojom/generate/module.py
+index db45e3344f1e3..0e24320e65da3 100644
+--- a/mojo/public/tools/bindings/pylib/mojom/generate/module.py
++++ b/mojo/public/tools/bindings/pylib/mojom/generate/module.py
+@@ -540,6 +540,46 @@ class Parameter(object):
+   def min_version(self):
+     return self.attributes.get(ATTRIBUTE_MIN_VERSION) \
+         if self.attributes else None
++  
++  @property
++  def is_mutated(self):
++    # is one of the parameters types targeted by the IPC fuzzer mutation?
++    # if not isinstance(self.kind, Struct):
++    #   return False
++    # if self.kind.module is None or not isinstance(self.kind.module, Module):
++    #   return False
++    if self.mojom_name == 'url' and self.kind.module.mojom_namespace == 'url.mojom':
++      return True
++    # if self.mojom_name == 'SiteForCookies' and self.kind.module.mojom_namespace == 'network.mojom':
++    #   return True
++    # if self.mojom_name == 'SchemefulSite' and self.kind.module.mojom_namespace == 'network.mojom':
++    #   return True
++    if self.mojom_name == 'origin' and self.kind.module.mojom_namespace == 'url.mojom':
++      return True
++    # if self.mojom_name == 'StorageKey' and self.kind.module.mojom_namespace == 'blink.mojom':
++    #   return True
++    
++    return False
++  
++  @property 
++  def internal(self):
++    return str(self.kind.module.mojom_namespace)
++    if self.mojom_name == 'Url':# and self.kind.module.mojom_namespace == 'url.mojom':
++      return "Url"
++    if self.mojom_name == 'Origin':# and self.kind.module.mojom_namespace == 'url.mojom':
++      return "Origin"
++    return "Default"
++  
++  @property
++  def is_interesting(self):
++    if self.mojom_name == "OpenURLParams" and self.kind.module.mojom_namespace == "blink.mojom":
++      return True
++    if self.mojom_name == "FetchAPIRequest" and self.kind.module.mojom_namespace == "blink.mojom":
++      return True # probably not relevant
++    if self.mojom_name == "CommonNavigationParams" and self.kind.module.mojom_namespace == "blink.mojom":
++      return True
++    
++    return False
+ 
+ 
+ class Method(object):
+diff --git a/third_party/blink/renderer/core/loader/base_fetch_context.cc b/third_party/blink/renderer/core/loader/base_fetch_context.cc
+index 996c07442f3ee..4dd2638233672 100644
+--- a/third_party/blink/renderer/core/loader/base_fetch_context.cc
++++ b/third_party/blink/renderer/core/loader/base_fetch_context.cc
+@@ -21,6 +21,8 @@
+ #include "third_party/blink/renderer/platform/weborigin/scheme_registry.h"
+ #include "third_party/blink/renderer/platform/weborigin/security_policy.h"
+ 
++#include "third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer_core.h"
++
+ namespace blink {
+ 
+ namespace {
+@@ -163,6 +165,10 @@ base::Optional<ResourceRequestBlockedReason> BaseFetchContext::CanRequest(
+     SecurityViolationReportingPolicy reporting_policy,
+     FetchParameters::OriginRestriction origin_restriction,
+     ResourceRequest::RedirectStatus redirect_status) const {
++  if(::blink::IPCFuzzerCore::GetInstance()->checks_deactivated){
++    //DISABLED_CHECK
++    return base::nullopt;
++  }
+   base::Optional<ResourceRequestBlockedReason> blocked_reason =
+       CanRequestInternal(type, resource_request, url, options, reporting_policy,
+                          origin_restriction, redirect_status);
+@@ -264,6 +270,10 @@ BaseFetchContext::CanRequestInternal(
+     SecurityViolationReportingPolicy reporting_policy,
+     FetchParameters::OriginRestriction origin_restriction,
+     ResourceRequest::RedirectStatus redirect_status) const {
++  if(::blink::IPCFuzzerCore::GetInstance()->checks_deactivated){
++    //DISABLED_CHECK
++    return base::nullopt;
++  }
+   if (IsDetached()) {
+     if (!resource_request.GetKeepalive() ||
+         redirect_status == ResourceRequest::RedirectStatus::kNoRedirect) {
+diff --git a/third_party/blink/renderer/modules/BUILD.gn b/third_party/blink/renderer/modules/BUILD.gn
+index 6561c4f9cb544..c59f0d452b9d3 100644
+--- a/third_party/blink/renderer/modules/BUILD.gn
++++ b/third_party/blink/renderer/modules/BUILD.gn
+@@ -164,6 +164,7 @@ target("jumbo_" + modules_target_type, "modules") {
+     "//third_party/blink/renderer/modules/xr",
+     "//third_party/icu",
+     "//third_party/zlib",
++    "//third_party/blink/renderer/modules/ipc_fuzzer",
+   ]
+ 
+   if (is_win) {
+diff --git a/third_party/blink/renderer/modules/ipc_fuzzer/BUILD.gn b/third_party/blink/renderer/modules/ipc_fuzzer/BUILD.gn
+new file mode 100644
+index 0000000000000..a74f2f82b303a
+--- /dev/null
++++ b/third_party/blink/renderer/modules/ipc_fuzzer/BUILD.gn
+@@ -0,0 +1,22 @@
++import("//third_party/blink/renderer/modules/modules.gni")
++
++blink_modules_sources("ipc_fuzzer") {
++  sources = [
++    "ipc_fuzzer.cc",
++    "ipc_fuzzer.h",
++    "ipc_fuzzer_core.cc",
++    "ipc_fuzzer_core.h",
++    "mutation.cc",
++    "mutation.h",
++    "mutation_store.cc",
++    "mutation_store.h",
++    "mutator.cc",
++    "mutator.h",
++    "url_store.cc",
++    "url_store.h",
++  ]
++
++  deps = [
++    # "//third_party/abseil-cpp/absl/types:optional",
++  ]
++}
+\ No newline at end of file
+diff --git a/third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer.cc b/third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer.cc
+new file mode 100644
+index 0000000000000..0d0bfd0e909ba
+--- /dev/null
++++ b/third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer.cc
+@@ -0,0 +1,80 @@
++#include "third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer.h"
++#include "base/logging.h"
++#include "third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer_core.h"
++// #include "third_party/blink/renderer/core/frame/local_dom_window.h"
++// #include "third_party/blink/renderer/core/frame/local_frame.h"
++// #include "third_party/blink/renderer/core/frame/local_frame_client.h"
++// #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
++
++namespace blink {
++void IPCFuzzer::send_detach(ExecutionContext* context) {
++  // DLOG(INFO) << "detach frame";
++  // IPCFuzzerCore::GetInstance()->send_detach();
++  // auto* window = DynamicTo<LocalDOMWindow>(context);
++  // // window->GetFrame()->GetLocalFrameHostRemote().Detach();
++  // window->GetFrame()->GetLocalFrameHostRemote().DidFailLoadWithError(KURL("http://127.0.0.1:8080"), -1);
++}
++void IPCFuzzer::mutate_url(const String& new_url) {
++  IPCFuzzerCore::GetInstance()->enqueue_mutation(
++      Mutation::TARGET::URL, Mutation::KIND::REPLACE_WHOLE, new_url);
++}
++
++void IPCFuzzer::mutate_url_replace_host(const String& new_host) {
++  IPCFuzzerCore::GetInstance()->enqueue_mutation(
++      Mutation::TARGET::URL, Mutation::KIND::REPLACE_HOST, new_host);
++}
++// void IPCFuzzer::mutate_origin(const String& new_url) {
++//   IPCFuzzerCore::GetInstance()->enqueue_mutation(
++//       Mutation::TARGET::ORIGIN, Mutation::KIND::REPLACE_WHOLE, new_url);
++// }
++void IPCFuzzer::mutate_origin_replace_host(const String& new_host) {
++  IPCFuzzerCore::GetInstance()->enqueue_mutation(
++      Mutation::TARGET::ORIGIN, Mutation::KIND::REPLACE_HOST, new_host);
++}
++void IPCFuzzer::mutate_site_for_cookies(const String& new_url) {
++  // IPCFuzzerCore::GetInstance()->enqueue_mutation(
++  //     Mutation::TARGET::SITE_FOR_COOKIES, Mutation::KIND::REPLACE_WHOLE,
++  //     new_url);
++}
++void IPCFuzzer::mutate_site_for_cookies_replace_host(const String& new_host) {
++  // IPCFuzzerCore::GetInstance()->enqueue_mutation(
++  //     Mutation::TARGET::SITE_FOR_COOKIES, Mutation::KIND::REPLACE_HOST,
++  //     new_host);
++}
++void IPCFuzzer::mutate_schemeful_site(const String& new_url) {
++  // IPCFuzzerCore::GetInstance()->enqueue_mutation(
++  //     Mutation::TARGET::SCHEMEFUL_SITE, Mutation::KIND::REPLACE_WHOLE, new_url);
++}
++void IPCFuzzer::mutate_schemeful_site_replace_host(const String& new_host) {
++  // IPCFuzzerCore::GetInstance()->enqueue_mutation(
++  //     Mutation::TARGET::SCHEMEFUL_SITE, Mutation::KIND::REPLACE_HOST, new_host);
++}
++void IPCFuzzer::mutate_storage_key(const String& new_url) {
++  // IPCFuzzerCore::GetInstance()->enqueue_mutation(
++  //     Mutation::TARGET::STORAGE_KEY, Mutation::KIND::REPLACE_WHOLE, new_url);
++}
++void IPCFuzzer::mutate_storage_key_replace_host(const String& new_host) {
++  // IPCFuzzerCore::GetInstance()->enqueue_mutation(
++  //     Mutation::TARGET::STORAGE_KEY, Mutation::KIND::REPLACE_HOST, new_host);
++}
++String IPCFuzzer::mutations() {
++  return IPCFuzzerCore::GetInstance()->list_mutations();
++}
++
++Vector<String> IPCFuzzer::leak() {
++  return IPCFuzzerCore::GetInstance()->leak();
++}
++
++bool IPCFuzzer::check_isolation(const String& site_url){
++  return IPCFuzzerCore::GetInstance()->check_isolation(site_url);
++}
++
++void IPCFuzzer::deactivate_renderer_checks(){
++  IPCFuzzerCore::GetInstance()->deactivate_renderer_checks();
++}
++
++void IPCFuzzer::activate_leak_sanitizer(){
++  IPCFuzzerCore::GetInstance()->activate_leak_sanitizer();
++}
++
++}  // namespace blink
+diff --git a/third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer.h b/third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer.h
+new file mode 100644
+index 0000000000000..43ee7c1213f5f
+--- /dev/null
++++ b/third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer.h
+@@ -0,0 +1,35 @@
++#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_IPC_FUZZER_H_
++#define THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_IPC_FUZZER_H_
++
++#include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
++#include "third_party/blink/renderer/modules/modules_export.h"
++// #include "third_party/blink/renderer/platform/bindings/script_state.h"
++#include "third_party/blink/renderer/core/execution_context/execution_context.h"
++
++// this is a wrapper around IPCFuzzerCore that exposes the JS API
++
++namespace blink {
++
++class IPCFuzzer final: public ScriptWrappable {
++  DEFINE_WRAPPERTYPEINFO();
++
++ public:
++  static void send_detach(ExecutionContext* context);
++  static void mutate_url(const String& new_url);
++  static void mutate_url_replace_host(const String& new_host);
++  // static void mutate_origin(const String& new_url);
++  static void mutate_origin_replace_host(const String& new_host);
++  static void mutate_site_for_cookies(const String& new_url);
++  static void mutate_site_for_cookies_replace_host(const String& new_host);
++  static void mutate_schemeful_site(const String& new_url);
++  static void mutate_schemeful_site_replace_host(const String& new_host);
++  static void mutate_storage_key(const String& new_url);
++  static void mutate_storage_key_replace_host(const String& new_host);
++  static String mutations();
++  static Vector<String> leak();
++  static bool check_isolation(const String& site_url);
++  static void deactivate_renderer_checks();
++  static void activate_leak_sanitizer();
++};
++}  // namespace blink
++#endif // THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_IPC_FUZZER_H_
+diff --git a/third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer.idl b/third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer.idl
+new file mode 100644
+index 0000000000000..24f0854ed6e1d
+--- /dev/null
++++ b/third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer.idl
+@@ -0,0 +1,18 @@
++[Exposed=Window]
++interface IPCFuzzer {
++    [CallWith=ExecutionContext] static void send_detach();
++    static void mutate_url(DOMString new_url);
++    static void mutate_url_replace_host(DOMString new_host);
++    static void mutate_origin_replace_host(DOMString new_host);
++    static void mutate_site_for_cookies(DOMString new_url);
++    static void mutate_site_for_cookies_replace_host(DOMString new_host);
++    static void mutate_schemeful_site(DOMString new_url);
++    static void mutate_schemeful_site_replace_host(DOMString new_host);
++    static void mutate_storage_key(DOMString new_url);
++    static void mutate_storage_key_replace_host(DOMString new_host);
++    static DOMString mutations();
++    static sequence<DOMString> leak();
++    static boolean check_isolation(DOMString site_url);
++    static void deactivate_renderer_checks();
++    static void activate_leak_sanitizer();
++};
+\ No newline at end of file
+diff --git a/third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer_core.cc b/third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer_core.cc
+new file mode 100644
+index 0000000000000..dfb5fc42679da
+--- /dev/null
++++ b/third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer_core.cc
+@@ -0,0 +1,305 @@
++// COPYRIGHT 2023 Jan Niklas Drescher
++
++#include "third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer_core.h"
++// #include <csignal>
++#include <csignal>
++#include "base/logging.h"
++#include "base/memory/singleton.h"
++#include "third_party/blink/renderer/modules/ipc_fuzzer/mutator.h"
++#include "url/gurl.h"
++
++#include "mojo/public/cpp/bindings/message.h"
++
++// #include "third_party/blink/public/common/navigation/navigation_params.h"
++// #include
++// "third_party/blink/public/mojom/navigation/navigation_params.mojom-blink.h"
++// #include "third_party/blink/public/mojom/navigation/navigation_params.mojom.h"
++
++namespace blink {
++
++  char magicString[MAGIC_LENGTH+1] = "8bf18cb9455f4a8e8fa93d14ab5ebb5d";
++
++bool containsMagicString(const char *data, size_t data_len){
++  // search for utf-8 magic string
++  if (data_len < MAGIC_LENGTH) {
++    return false;
++  }
++  for (size_t i = 0; i < data_len - MAGIC_LENGTH; i++) {
++    bool found = true;
++    for (size_t j = 0; j < MAGIC_LENGTH; j++) {
++      if (data[i + j] != magicString[j]) {
++        found = false;
++        break;
++      }
++    }
++    if (found) {
++      return true;
++    }
++  }
++  return false;
++}
++
++// Basic function to append a character to a buffer, expanding it if necessary
++void appendChar(char *&str, int &len, int &cap, char c) {
++    if (len + 1 >= cap) {
++        cap *= 2;  // Double the capacity
++        char *newStr = new char[cap];  // Allocate new buffer
++        for (int i = 0; i < len; ++i) {
++            newStr[i] = str[i];  // Copy old content
++        }
++        delete[] str;  // Free old buffer
++        str = newStr;
++    }
++    str[len++] = c;  // Append the character
++    str[len] = '\0';  // Null-terminate the string
++}
++
++// Function to append a hexadecimal representation of a byte to a string
++void appendHex(char *&str, int &len, int &cap, unsigned char byte) {
++    const char *hexDigits = "0123456789ABCDEF";
++    appendChar(str, len, cap, hexDigits[byte >> 4]);
++    appendChar(str, len, cap, hexDigits[byte & 0x0F]);
++}
++
++// Main hexDump function that returns a dynamically allocated string
++char* hexDump(const char* data, size_t len) {
++    int capacity = 256;  // Initial capacity of the string
++    char *result = new char[capacity];
++    int resultLen = 0;
++    result[resultLen] = '\0';  // Start with an empty string
++
++    for (size_t i = 0; i < len; ++i) {
++        unsigned char byte = data[i];
++        if (byte >= 0x20 && byte < 0x7E) {  // Printable ASCII range
++            appendChar(result, resultLen, capacity, byte);
++        } else {
++            appendChar(result, resultLen, capacity, '\\');
++            appendChar(result, resultLen, capacity, 'x');
++            appendHex(result, resultLen, capacity, byte);
++        }
++    }
++
++    return result;
++}
++
++void leakSanitizer(const char* data, size_t data_len) {
++  // char* output = hexDump(data, data_len);
++  // LOG(ERROR) << output;
++  // delete[] output;
++
++  if (data != nullptr && data_len > 0 && containsMagicString(data, data_len)) {
++    char* output = hexDump(data, data_len);
++    LOG(ERROR) << "[UXSS] leak in IPC message: " << output;
++    delete[] output;
++  }
++}
++
++void IPCFuzzerCore::activate_leak_sanitizer() {
++  // ::IPC::leakSanitizerCallback = &leakSanitizer;
++  ::mojo::leakSanitizerCallback = &leakSanitizer;
++}
++
++IPCFuzzerCore* IPCFuzzerCore::GetInstance() {
++  return ::base::Singleton<IPCFuzzerCore>::get();
++}
++
++IPCFuzzerCore::IPCFuzzerCore()
++    : url_mutation_store_(),
++      security_origin_mutation_store_(),
++      // schemeful_site_mutation_store_(),
++      // site_for_cookies_mutation_store_(),
++      // storage_key_mutation_store_(),
++      url_store_(),
++      lock_(),
++      locked_site_(base::nullopt) {
++  LOG(INFO) << "RENDERER PROCESS";
++  sigignore(SIGTERM);
++}
++
++IPCFuzzerCore::~IPCFuzzerCore() = default;
++
++// todo ignore kill signals
++void IPCFuzzerCore::send_detach() {
++  // LOG(INFO) << "send detach message to browser";
++}
++
++void IPCFuzzerCore::register_document(const KURL& url) {
++  url_store_.store(url);
++}
++
++WTF::Vector<WTF::String> IPCFuzzerCore::leak() {
++  // WTF::String result;
++  // for (const WTF::String& s : url_store_.get()) {
++  //   result = result + s + "\n";
++  // }
++  // return result;
++  return url_store_.get();
++}
++
++void IPCFuzzerCore::deactivate_renderer_checks() {
++  checks_deactivated = true;
++}
++
++void IPCFuzzerCore::enqueue_mutation(Mutation::TARGET target,
++                                     Mutation::KIND kind,
++                                     WTF::String url) {
++  switch (target) {
++    case Mutation::TARGET::URL:
++      url_mutation_store_.enqueue(target, kind, url);
++      break;
++    case Mutation::TARGET::ORIGIN:
++      security_origin_mutation_store_.enqueue(target, kind, url);
++      break;
++    // case Mutation::TARGET::SITE_FOR_COOKIES:
++    //   site_for_cookies_mutation_store_.enqueue(target, kind, url);
++    //   break;
++    // case Mutation::TARGET::SCHEMEFUL_SITE:
++    //   schemeful_site_mutation_store_.enqueue(target, kind, url);
++    //   break;
++    // case Mutation::TARGET::STORAGE_KEY:
++    //   storage_key_mutation_store_.enqueue(target, kind, url);
++    //   break;
++  }
++}
++
++WTF::String IPCFuzzerCore::list_mutations() {
++  // return mutation_store_.to_string();
++  // TODO fix for multiple stores
++  return "";
++}
++
++std::unique_ptr<const KURL> IPCFuzzerCore::mutate_kurl_hook(const KURL& url) {
++  LOG(INFO) << "IPCFuzzerCore intercept value: KURL " << url;
++  std::unique_ptr<Mutation> mutation = url_mutation_store_.dequeue();
++
++  if (mutation == nullptr) {
++    return nullptr;
++  }
++
++  return Mutator::mutate_url(url, *mutation);
++}
++
++std::unique_ptr<const WebURL> IPCFuzzerCore::mutate_web_url_hook(const WebURL& url){
++  KURL kurl = KURL(url);
++  LOG(INFO) << "IPCFuzzerCore intercept value: WebURL " << kurl;
++  std::unique_ptr<const blink::KURL> mutated = mutate_kurl_hook(kurl);
++  if(mutated != nullptr){
++    return std::make_unique<WebURL>(*mutated);
++  }
++  return nullptr;
++}
++
++std::unique_ptr<const GURL> IPCFuzzerCore::mutate_gurl_hook(const ::GURL& url) {
++  LOG(INFO) << "IPCFuzzerCore intercept value: GURL " << url;
++
++  // todo
++
++  return nullptr;
++}
++
++::scoped_refptr<const SecurityOrigin>
++IPCFuzzerCore::mutate_security_origin_hook(
++    const ::scoped_refptr<const SecurityOrigin>& security_origin) {
++  if (security_origin != nullptr) {
++    LOG(INFO) << "IPCFuzzerCore intercept value: SecurityOrigin "
++               << security_origin->ToString();
++  }
++
++  std::unique_ptr<Mutation> mutation =
++      security_origin_mutation_store_.dequeue();
++
++  if (mutation == nullptr) {
++    return nullptr;
++  }
++
++  return Mutator::mutate_security_origin(security_origin, *mutation);
++}
++
++// absl::optional<BlinkSchemefulSite> IPCFuzzerCore::mutate_schemeful_site_hook(
++//     const absl::optional<BlinkSchemefulSite>& schemeful_site) {
++//   if (schemeful_site.has_value()) {
++//     LOG(INFO) << "IPCFuzzerCore intercept value: BlinkSchemefulSite "
++//                << schemeful_site.value().GetDebugString();
++//   }
++
++//   // TODO: only dequeue mutation if IPCFuzzerCore intercept value:ed param has
++//   // value?
++//   std::unique_ptr<Mutation> mutation = schemeful_site_mutation_store_.dequeue();
++
++//   if (mutation == nullptr) {
++//     return absl::nullopt;
++//   }
++
++//   return Mutator::mutate_schemeful_site(schemeful_site, *mutation);
++// }
++
++// std::unique_ptr<const ::net::SiteForCookies>
++// IPCFuzzerCore::mutate_site_for_cookies_hook(
++//     const ::net::SiteForCookies& site_for_cookies) {
++//   LOG(INFO) << "IPCFuzzerCore intercept value: SiteForCookies "
++//              << site_for_cookies.ToDebugString();
++
++//   std::unique_ptr<Mutation> mutation =
++//       site_for_cookies_mutation_store_.dequeue();
++
++//   if (mutation == nullptr) {
++//     return nullptr;
++//   }
++
++//   return Mutator::mutate_site_for_cookies(site_for_cookies, *mutation);
++// }
++
++// std::unique_ptr<const BlinkStorageKey> IPCFuzzerCore::mutate_storage_key_hook(
++//     const BlinkStorageKey& storage_key) {
++//   LOG(INFO) << "IPCFuzzerCore intercept value: BlinkStorageKey "
++//              << storage_key.ToDebugString();
++
++//   std::unique_ptr<Mutation> mutation = storage_key_mutation_store_.dequeue();
++
++//   if (mutation == nullptr) {
++//     return nullptr;
++//   }
++
++//   return Mutator::mutate_storage_key(storage_key, *mutation);
++// }
++
++std::unique_ptr<const ::url::Origin> IPCFuzzerCore::mutate_origin_hook(
++    const ::url::Origin& origin) {
++  LOG(INFO) << "IPCFuzzerCore intercept value: Origin " << origin.Serialize();
++
++  auto security_origin = ::blink::SecurityOrigin::CreateFromUrlOrigin(origin);
++  auto mutated_security_origin = mutate_security_origin_hook(security_origin);
++  if (!mutated_security_origin) {
++    return nullptr;
++  }
++
++  return std::make_unique<const ::url::Origin>(mutated_security_origin->ToUrlOrigin());
++}
++
++bool IPCFuzzerCore::check_isolation(const WTF::String& site_url) {
++  KURL url(site_url);
++  // auto security_origin =
++  //     SecurityOrigin::CreateWithReferenceOrigin(url, nullptr);
++  // BlinkSchemefulSite schemeful_site(security_origin);
++
++  lock_.Acquire();
++  if (locked_site_.has_value()) {
++    if (locked_site_.value().Host() == url.Host()) {
++      lock_.Release();
++      return false;
++    } else {
++      LOG(INFO) << "[blink] [UXSS] " << url.Host() << " "
++                 << locked_site_.value().Host();
++      lock_.Release();
++      return true;
++    }
++
++  } else {
++    locked_site_ = url;
++    lock_.Release();
++    LOG(INFO) << "LOCK " << url.Host();
++    return false;
++  }
++}
++
++}  // namespace blink
+diff --git a/third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer_core.h b/third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer_core.h
+new file mode 100644
+index 0000000000000..29ead5550be4e
+--- /dev/null
++++ b/third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer_core.h
+@@ -0,0 +1,98 @@
++// COPYRIGHT 2023 Jan Niklas Drescher
++
++#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER__IPC_FUZZER_CORE_H_
++#define THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER__IPC_FUZZER_CORE_H_
++
++#include <memory>
++#include "base/memory/singleton.h"
++// #include "net/cookies/site_for_cookies.h"
++#include "third_party/blink/renderer/modules/ipc_fuzzer/mutation.h"
++#include "third_party/blink/renderer/modules/ipc_fuzzer/mutation_store.h"
++#include "third_party/blink/renderer/modules/ipc_fuzzer/url_store.h"
++// #include "third_party/blink/renderer/platform/network/blink_schemeful_site.h" doesnt exist
++// #include "third_party/blink/renderer/platform/storage/blink_storage_key.h"
++#include "third_party/blink/renderer/platform/weborigin/kurl.h"
++#include "third_party/blink/renderer/platform/weborigin/security_origin.h"
++#include "base/optional.h"
++#include "third_party/blink/public/platform/web_url.h"
++
++namespace base {
++template <typename T>
++struct DefaultSingletonTraits;
++}
++
++namespace blink {
++    #define MAGIC_LENGTH 32
++    extern char magicString[MAGIC_LENGTH+1];
++
++    extern void leak_sanitizer(const char* data, size_t data_len);
++    bool containsMagicString(const char* data, size_t data_len);
++    char* hexDump(const char* data, size_t len);
++    void appendHex(char *&str, int &len, int &cap, unsigned char byte);
++    void appendChar(char *&str, int &len, int &cap, char c);
++
++class IPCFuzzerCore {
++ public:
++  ~IPCFuzzerCore();
++
++  static IPCFuzzerCore* GetInstance();
++
++  IPCFuzzerCore(const IPCFuzzerCore&) = delete;
++  IPCFuzzerCore& operator=(const IPCFuzzerCore&) = delete;
++
++  // JS bindings
++  void enqueue_mutation(Mutation::TARGET target,
++                        Mutation::KIND kind,
++                        WTF::String url);
++  void send_detach();
++  WTF::String list_mutations();
++  bool check_isolation(const WTF::String& site_url);
++
++  void register_document(const KURL& url);
++  WTF::Vector<WTF::String> leak();
++
++  void deactivate_renderer_checks();
++  bool checks_deactivated = false;
++
++  void activate_leak_sanitizer();
++
++  // fuzzer hooks
++
++  std::unique_ptr<const KURL> mutate_kurl_hook(const KURL& url);
++  std::unique_ptr<const WebURL> mutate_web_url_hook(const WebURL& url);
++
++  std::unique_ptr<const ::GURL> mutate_gurl_hook(const GURL& url);
++
++  ::scoped_refptr<const SecurityOrigin> mutate_security_origin_hook(
++      const ::scoped_refptr<const SecurityOrigin>& security_origin);
++
++//   absl::optional<BlinkSchemefulSite> mutate_schemeful_site_hook(
++//       const absl::optional<BlinkSchemefulSite>& schemeful_site);
++
++//   std::unique_ptr<const ::net::SiteForCookies> mutate_site_for_cookies_hook(
++//       const ::net::SiteForCookies& site_for_cookies);
++
++//   std::unique_ptr<const BlinkStorageKey> mutate_storage_key_hook(
++//       const BlinkStorageKey& storage_key);
++
++  std::unique_ptr<const ::url::Origin> mutate_origin_hook(
++      const ::url::Origin& origin);
++
++ private:
++  IPCFuzzerCore();
++  friend struct ::base::DefaultSingletonTraits<IPCFuzzerCore>;
++
++  MutationStore url_mutation_store_;
++  MutationStore security_origin_mutation_store_;
++//   MutationStore schemeful_site_mutation_store_;
++//   MutationStore site_for_cookies_mutation_store_;
++//   MutationStore storage_key_mutation_store_;
++  UrlStore url_store_;
++
++  base::Lock lock_;
++  base::Optional<KURL> locked_site_;
++};
++
++}  // namespace blink
++
++#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_IPC_FUZZER_CORE_H_
+diff --git a/third_party/blink/renderer/modules/ipc_fuzzer/mutation.cc b/third_party/blink/renderer/modules/ipc_fuzzer/mutation.cc
+new file mode 100644
+index 0000000000000..af965bf9cba36
+--- /dev/null
++++ b/third_party/blink/renderer/modules/ipc_fuzzer/mutation.cc
+@@ -0,0 +1,40 @@
++#include "third_party/blink/renderer/modules/ipc_fuzzer/mutation.h"
++
++namespace blink {
++WTF::String Mutation::to_string() const {
++  WTF::String target_str;
++  switch (target_) {
++    case Mutation::TARGET::URL:
++      target_str = "URL";
++      break;
++    case Mutation::TARGET::ORIGIN:
++      target_str = "ORIGIN";
++      break;
++    // case Mutation::TARGET::SITE_FOR_COOKIES:
++    //   target_str = "SITE_FOR_COOKIES";
++    //   break;
++    // case Mutation::TARGET::SCHEMEFUL_SITE:
++    //   target_str = "SCHEMEFUL_SITE";
++    //   break;
++    // case Mutation::TARGET::STORAGE_KEY:
++    //   target_str = "STORAGE_KEY";
++    //   break;
++  }
++
++  WTF::String kind_str;
++  switch (kind_) {
++    case Mutation::KIND::REPLACE_HOST:
++      kind_str = "REPLACE_HOST";
++      break;
++    case Mutation::KIND::REPLACE_WHOLE:
++      kind_str = "REPLACE_WHOLE";
++      break;
++  }
++
++  WTF::String result = WTF::String("{'target':'") + target_str +
++                       WTF::String("', 'kind':'") + kind_str +
++                       WTF::String("', 'url':'") + url_.GetString() + WTF::String("'}");
++  return result;
++}
++
++}  // namespace ipc_fuzzer
+diff --git a/third_party/blink/renderer/modules/ipc_fuzzer/mutation.h b/third_party/blink/renderer/modules/ipc_fuzzer/mutation.h
+new file mode 100644
+index 0000000000000..0da841a2c2456
+--- /dev/null
++++ b/third_party/blink/renderer/modules/ipc_fuzzer/mutation.h
+@@ -0,0 +1,41 @@
++// COPYRIGHT 2023 Jan Niklas Drescher
++
++#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_MUTATION_H_
++#define THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_MUTATION_H_
++
++#include "third_party/blink/renderer/platform/weborigin/kurl.h"
++
++namespace blink {
++
++class Mutation {
++ public:
++
++  enum class TARGET {
++    URL,
++    ORIGIN,
++    // SITE_FOR_COOKIES,
++    // SCHEMEFUL_SITE,
++    // STORAGE_KEY,
++  };
++
++  enum class KIND {
++    REPLACE_HOST,
++    REPLACE_WHOLE,
++  };
++
++  Mutation(TARGET target, KIND kind, KURL url)
++      : target_(target), kind_(kind), url_(url) {}
++
++  const TARGET& get_target() const {return target_;}
++  const KIND& get_kind() const { return kind_; }
++  const KURL& get_url() const { return url_; }
++  WTF::String to_string() const;
++
++ private:
++  TARGET target_;
++  KIND kind_;
++  KURL url_;
++};
++}  // namespace ipc_fuzzer
++
++#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_MUTATION_H_
+diff --git a/third_party/blink/renderer/modules/ipc_fuzzer/mutation_store.cc b/third_party/blink/renderer/modules/ipc_fuzzer/mutation_store.cc
+new file mode 100644
+index 0000000000000..34836b94b3e09
+--- /dev/null
++++ b/third_party/blink/renderer/modules/ipc_fuzzer/mutation_store.cc
+@@ -0,0 +1,73 @@
++#include "third_party/blink/renderer/modules/ipc_fuzzer/mutation_store.h"
++#include "base/logging.h"
++
++namespace blink {
++MutationStore::MutationStore() = default;
++MutationStore::~MutationStore() = default;
++
++void MutationStore::enqueue(Mutation::TARGET target,
++                            Mutation::KIND kind,
++                            WTF::String url) {
++  ::blink::KURL parsed_url(url);
++  std::unique_ptr<Mutation> mutation =
++      std::make_unique<Mutation>(target, kind, std::move(parsed_url));
++  DLOG(INFO) << "IPCFuzzer enqueue mutation: " << mutation->to_string();
++
++  lock_.Acquire();
++  mutations_.push_back(std::move(mutation));
++  lock_.Release();
++}
++
++void MutationStore::enqueue(Mutation mutation) {
++  DLOG(INFO) << "IPCFuzzer enqueue mutation: " << mutation.to_string();
++  lock_.Acquire();
++  mutations_.emplace_back(std::make_unique<Mutation>(std::move(mutation)));
++  lock_.Release();
++}
++
++std::unique_ptr<Mutation> MutationStore::dequeue_match(
++    const Mutation::TARGET& target) {
++  lock_.Acquire();
++  if (mutations_.size() == 0) {
++    lock_.Release();
++    return nullptr;
++  }
++
++  if (mutations_.at(0)->get_target() == target) {
++    std::unique_ptr<Mutation> mutation = std::move(mutations_.at(0));
++    mutations_.EraseAt(0);
++    lock_.Release();
++    return mutation;
++  }
++  lock_.Release();
++  return nullptr;
++}
++
++std::unique_ptr<Mutation> MutationStore::dequeue() {
++  lock_.Acquire();
++  if (mutations_.size() == 0) {
++    lock_.Release();
++    return nullptr;
++  }
++
++  std::unique_ptr<Mutation> mutation = std::move(mutations_.at(0));
++  mutations_.EraseAt(0);
++  lock_.Release();
++  return mutation;
++}
++
++WTF::String MutationStore::to_string() {
++  WTF::String result = "[";
++  lock_.Acquire();
++  for (const auto& m : mutations_) {
++    result = result + m->to_string();
++    if (&m != &mutations_.back()) {
++      result = result + ",";
++    }
++  }
++  lock_.Release();
++  result = result + "]";
++  return result;
++}
++
++}  // namespace blink
+diff --git a/third_party/blink/renderer/modules/ipc_fuzzer/mutation_store.h b/third_party/blink/renderer/modules/ipc_fuzzer/mutation_store.h
+new file mode 100644
+index 0000000000000..104c757b6094b
+--- /dev/null
++++ b/third_party/blink/renderer/modules/ipc_fuzzer/mutation_store.h
+@@ -0,0 +1,28 @@
++#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_MUTATION_STORE_H_
++#define THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_MUTATION_STORE_H_
++
++#include <memory>
++#include "base/synchronization/lock.h"
++#include "third_party/blink/renderer/modules/ipc_fuzzer/mutation.h"
++
++namespace blink {
++class MutationStore {
++ public:
++  MutationStore();
++  ~MutationStore();
++
++  void enqueue(Mutation::TARGET target, Mutation::KIND kind, WTF::String url);
++  void enqueue(Mutation mutation);
++
++  std::unique_ptr<Mutation> dequeue_match(const Mutation::TARGET& target);
++  std::unique_ptr<Mutation> dequeue();
++  WTF::String to_string();
++
++ private:
++  base::Lock lock_;
++  WTF::Vector<std::unique_ptr<Mutation>> mutations_;
++};
++
++}  // namespace blink
++
++#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_MUTATION_STORE_H_
+diff --git a/third_party/blink/renderer/modules/ipc_fuzzer/mutator.cc b/third_party/blink/renderer/modules/ipc_fuzzer/mutator.cc
+new file mode 100644
+index 0000000000000..b2168f82a3a86
+--- /dev/null
++++ b/third_party/blink/renderer/modules/ipc_fuzzer/mutator.cc
+@@ -0,0 +1,318 @@
++// COPYRIGHT 2023 Jan Niklas Drescher
++
++#include "third_party/blink/renderer/modules/ipc_fuzzer/mutator.h"
++#include "base/logging.h"
++#include "url/gurl.h"
++
++namespace blink {
++
++std::unique_ptr<const KURL> Mutator::mutate_url(const KURL& url,
++                                                const Mutation& mutation) {
++  std::unique_ptr<const KURL> mutated = nullptr;
++  switch (mutation.get_kind()) {
++    case Mutation::KIND::REPLACE_HOST:
++      mutated = url_replace_host(url, mutation.get_url());
++      break;
++    case Mutation::KIND::REPLACE_WHOLE:
++      mutated = std::make_unique<const KURL>(mutation.get_url());
++      break;
++  }
++  if (mutated != nullptr) {
++    DLOG(INFO) << "IPCFuzzer mutated: KURL " << *mutated;
++  }
++  return mutated;
++}
++
++// return scoped_refptr because that is used by all Mojo functions
++::scoped_refptr<const SecurityOrigin> Mutator::mutate_security_origin(
++    const ::scoped_refptr<const SecurityOrigin>& security_origin,
++    const Mutation& mutation) {
++  ::scoped_refptr<const SecurityOrigin> mutated = nullptr;
++  switch (mutation.get_kind()) {
++    case Mutation::KIND::REPLACE_HOST:
++      mutated =
++          security_origin_replace_host(security_origin, mutation.get_url());
++      break;
++    case Mutation::KIND::REPLACE_WHOLE:
++      mutated =
++          SecurityOrigin::CreateFromString(mutation.get_url().GetString());
++      break;
++  }
++  // if (mutated != nullptr) {
++  //   DLOG(INFO) << "IPCFuzzer mutated: SecurityOrigin " <<
++  //   mutated->ToString();
++  // }
++  return mutated;
++}
++
++// // return optional because that is used by all Mojo functions
++// absl::optional<BlinkSchemefulSite> Mutator::mutate_schemeful_site(
++//     const absl::optional<BlinkSchemefulSite>& schemeful_site,
++//     const Mutation& mutation) {
++//   absl::optional<BlinkSchemefulSite> mutated = absl::nullopt;
++//   switch (mutation.get_kind()) {
++//     case Mutation::KIND::REPLACE_HOST:
++//       mutated = schemeful_site_replace_host(schemeful_site,
++//       mutation.get_url()); break;
++//     case Mutation::KIND::REPLACE_WHOLE: {
++//       auto security_origin = SecurityOrigin::CreateWithReferenceOrigin(
++//           mutation.get_url(), nullptr);
++//       mutated = BlinkSchemefulSite(security_origin);
++//     } break;
++//   }
++//   // if (mutated.has_value()) {
++//   //   DLOG(INFO) << "IPCFuzzer mutated: BlinkSchemefulSite "
++//   //              << mutated.value().GetDebugString();
++//   // }
++//   return mutated;
++// }
++
++// std::unique_ptr<const ::net::SiteForCookies>
++// Mutator::mutate_site_for_cookies(
++//     const ::net::SiteForCookies& site_for_cookies,
++//     const Mutation& mutation) {
++//   std::unique_ptr<const ::net::SiteForCookies> mutated = nullptr;
++//   switch (mutation.get_kind()) {
++//     case Mutation::KIND::REPLACE_HOST:
++//       mutated =
++//           site_for_cookies_replace_host(site_for_cookies,
++//           mutation.get_url());
++//       break;
++//     case Mutation::KIND::REPLACE_WHOLE:
++//       mutated = std::make_unique<const ::net::SiteForCookies>(
++//           ::net::SiteForCookies::FromUrl(GURL(mutation.get_url())));
++//       break;
++//   }
++//   // if (mutated != nullptr) {
++//   //   DLOG(INFO) << "IPCFuzzer mutated: SiteForCookies "
++//   //              << mutated->ToDebugString();
++//   // }
++//   return mutated;
++// }
++
++// // TODO: implement more different mutations
++// std::unique_ptr<const BlinkStorageKey> Mutator::mutate_storage_key(
++//     const BlinkStorageKey& storage_key,
++//     const Mutation& mutation) {
++//   std::unique_ptr<const BlinkStorageKey> mutated = nullptr;
++//   switch (mutation.get_kind()) {
++//     case Mutation::KIND::REPLACE_HOST:
++//       mutated = storage_key_replace_host(storage_key, mutation.get_url());
++//       break;
++//     case Mutation::KIND::REPLACE_WHOLE:
++//       mutated = create_storage_key(mutation.get_url());
++//       break;
++//   }
++//   // if (mutated != nullptr) {
++//   //   DLOG(INFO) << "IPCFuzzer mutated: BlinkStorageKey "
++//   //              << mutated->ToDebugString();
++//   // }
++//   return mutated;
++// }
++
++// private helper functions
++
++std::unique_ptr<KURL> Mutator::url_replace_host(const KURL& url,
++                                                const KURL& replacement) {
++  if (!can_replace_host(url)) {
++    return url_replace_inner_host(url, replacement);
++  }
++
++  std::unique_ptr<KURL> new_url = std::make_unique<KURL>(url);
++  new_url->SetHost(replacement.Host());
++  if (replacement.HasPort()) {
++    new_url->SetPort(replacement.Port());
++  } else {
++    new_url->RemovePort();
++  }
++  return new_url;
++}
++
++std::unique_ptr<KURL> Mutator::url_replace_inner_host(const KURL& url,
++                                                      const KURL& replacement) {
++  if (!can_replace_inner_host(url)) {
++    return nullptr;
++  }
++
++  WTF::String protocol;
++  if (url.ProtocolIs("blob")) {
++    protocol = "blob:";
++  } else if (url.ProtocolIs("filesystem")) {
++    protocol = "filesystem:";
++  }
++
++  WTF::String url_str = url.GetString();
++  url_str.Replace(protocol, "");
++
++  KURL inner_url(url_str);
++
++  // if (inner_url.IsNull() || inner_url.IsEmpty()) {
++  //   DLOG(INFO) << "IPCFuzzer mutating inner url failed";
++  //   return nullptr;
++  // }
++
++  inner_url.SetHost(replacement.Host());
++  if (replacement.HasPort()) {
++    inner_url.SetPort(replacement.Port());
++  } else {
++    inner_url.RemovePort();
++  }
++  std::unique_ptr<KURL> new_url =
++      std::make_unique<KURL>(protocol + inner_url.GetString());
++  return new_url;
++}
++
++::scoped_refptr<const SecurityOrigin> Mutator::security_origin_replace_host(
++    const ::scoped_refptr<const SecurityOrigin>& security_origin,
++    const KURL& replacement) {
++  if (!can_replace_host(security_origin)) {
++    return nullptr;
++  }
++  KURL url(security_origin->ToString());
++
++  std::unique_ptr<blink::KURL> new_url = url_replace_host(url, replacement);
++  if (new_url == nullptr) {
++    // replacing host failed
++    return nullptr;
++  }
++
++  return SecurityOrigin::SecurityOrigin::CreateFromString(new_url->GetString());
++}
++
++// absl::optional<BlinkSchemefulSite> Mutator::schemeful_site_replace_host(
++//     const absl::optional<BlinkSchemefulSite>& schemeful_site,
++//     const KURL& replacement) {
++//   if (!can_replace_host(schemeful_site)) {
++//     return absl::nullopt;
++//   }
++
++//   String schemeful_site_str = schemeful_site.value().Serialize();
++
++//   std::unique_ptr<KURL> new_url =
++//       url_replace_host(KURL(schemeful_site_str), replacement);
++//   if (new_url == nullptr) {
++//     return absl::nullopt;
++//   }
++
++//   auto origin = SecurityOrigin::CreateWithReferenceOrigin(*new_url, nullptr);
++//   return BlinkSchemefulSite(origin);
++// }
++
++// std::unique_ptr<::net::SiteForCookies>
++// Mutator::site_for_cookies_replace_host(
++//     const ::net::SiteForCookies& site_for_cookies,
++//     const KURL& replacement) {
++//   if (!can_replace_host(site_for_cookies)) {
++//     return nullptr;
++//   }
++
++//   GURL url = site_for_cookies.RepresentativeUrl();
++//   std::unique_ptr<KURL> new_url = url_replace_host(KURL(url), replacement);
++//   if (new_url == nullptr) {
++//     return nullptr;
++//   }
++
++//   return std::make_unique<::net::SiteForCookies>(
++//       ::net::SiteForCookies::FromUrl(GURL(*new_url)));
++// }
++
++// std::unique_ptr<BlinkStorageKey> Mutator::storage_key_replace_host(
++//     const BlinkStorageKey& storage_key,
++//     const KURL& replacement) {
++//   auto security_origin = storage_key.GetSecurityOrigin();
++//   ::scoped_refptr<const SecurityOrigin> new_security_origin =
++//       security_origin_replace_host(security_origin, replacement);
++//   if (new_security_origin == nullptr) {
++//     return nullptr;
++//   }
++
++//   // if the storage key has a nonce, just replace the host and reuse the
++//   // nonce
++//   // QUESTION: is this right??
++//   auto token = storage_key.GetNonce();
++//   if (token.has_value()) {
++//     return std::make_unique<BlinkStorageKey>(
++//         BlinkStorageKey::CreateWithNonce(new_security_origin,
++//         token.value()));
++//   }
++
++//   auto schemeful_site = storage_key.GetTopLevelSite();
++//   absl::optional<BlinkSchemefulSite> new_schemeful_site =
++//       schemeful_site_replace_host(schemeful_site, replacement);
++//   if (new_schemeful_site.has_value()) {
++//     return std::make_unique<BlinkStorageKey>(new_security_origin,
++//                                              new_schemeful_site.value());
++//   }
++
++//   return std::make_unique<BlinkStorageKey>(new_security_origin);
++// }
++
++// std::unique_ptr<BlinkStorageKey> Mutator::create_storage_key(const KURL& url)
++// {
++//   auto security_origin =
++//       SecurityOrigin::CreateWithReferenceOrigin(url, nullptr);
++//   return std::make_unique<BlinkStorageKey>(security_origin);
++// }
++
++// std::unique_ptr<BlinkStorageKey> Mutator::create_storage_key(
++//     const KURL& url,
++//     mojom::AncestorChainBit ancestor_chain_bit) {
++//   auto security_origin =
++//       SecurityOrigin::CreateWithReferenceOrigin(url, nullptr);
++//   auto schemeful_site = BlinkSchemefulSite(security_origin);
++//   return std::make_unique<BlinkStorageKey>(
++//       BlinkStorageKey::Create(security_origin, schemeful_site,
++//                                        ancestor_chain_bit));
++// }
++
++bool Mutator::can_replace_host(const KURL& url) {
++  if (url.IsNull()) {
++    // DLOG(INFO) << "IPCFuzzer KURL is null";
++    return false;
++  }
++  if (url.IsEmpty()) {
++    // DLOG(INFO) << "IPCFuzzer KURL is empty";
++    return false;
++  }
++  if (!url.CanSetHostOrPort() || url.ProtocolIs("blob") ||
++      url.ProtocolIs("filesystem")) {
++    return false;
++  }
++  return true;
++}
++
++bool Mutator::can_replace_inner_host(const KURL& url) {
++  if (url.ProtocolIs("blob") || url.ProtocolIs("filesystem")) {
++    return true;
++  }
++  return false;
++}
++
++bool Mutator::can_replace_host(
++    const ::scoped_refptr<const SecurityOrigin>& security_origin) {
++  if (security_origin == nullptr || security_origin->IsOpaque()) {
++    return false;
++  }
++  return true;
++}
++
++// bool Mutator::can_replace_host(
++//     const absl::optional<BlinkSchemefulSite>& schemeful_site) {
++//   if (!schemeful_site.has_value()) {
++//     return false;
++//   }
++//   if (schemeful_site.value().Serialize() == "null") {
++//     return false;
++//   }
++//   return true;
++// }
++
++// bool Mutator::can_replace_host(const ::net::SiteForCookies& site_for_cookies)
++// {
++//   if (site_for_cookies.IsNull()) {
++//     return false;
++//   }
++//   return true;
++// }
++
++}  // namespace blink
+diff --git a/third_party/blink/renderer/modules/ipc_fuzzer/mutator.h b/third_party/blink/renderer/modules/ipc_fuzzer/mutator.h
+new file mode 100644
+index 0000000000000..68e5f429d6507
+--- /dev/null
++++ b/third_party/blink/renderer/modules/ipc_fuzzer/mutator.h
+@@ -0,0 +1,83 @@
++// COPYRIGHT 2023 Jan Niklas Drescher
++
++#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_MUTATOR_H_
++#define THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_MUTATOR_H_
++
++#include <memory>
++// #include "net/cookies/site_for_cookies.h"
++#include "third_party/blink/renderer/modules/ipc_fuzzer/mutation.h"
++// #include "third_party/blink/renderer/platform/network/blink_schemeful_site.h"
++// #include "third_party/blink/renderer/platform/storage/blink_storage_key.h"
++#include "third_party/blink/renderer/platform/weborigin/kurl.h"
++#include "third_party/blink/renderer/platform/weborigin/security_origin.h"
++
++namespace blink {
++class Mutator {
++ public:
++  static std::unique_ptr<const KURL> mutate_url(
++      const KURL& url,
++      const Mutation& mutation);
++
++  // return scoped_refptr because that is used by all Mojo functions
++  static ::scoped_refptr<const SecurityOrigin> mutate_security_origin(
++      const ::scoped_refptr<const SecurityOrigin>& security_origin,
++      const Mutation& mutation);
++
++//   // return optional because that is used by all Mojo functions
++//   static absl::optional<BlinkSchemefulSite> mutate_schemeful_site(
++//       const absl::optional<BlinkSchemefulSite>& schemeful_site,
++//       const Mutation& mutation);
++
++//   static std::unique_ptr<const ::net::SiteForCookies> mutate_site_for_cookies(
++//       const ::net::SiteForCookies& site_for_cookies,
++//       const Mutation& mutation);
++
++//   static std::unique_ptr<const BlinkStorageKey> mutate_storage_key(
++//       const BlinkStorageKey& storage_key,
++//       const Mutation& mutation);
++
++ private:
++  static std::unique_ptr<KURL> url_replace_host(
++      const KURL& url,
++      const KURL& replacement);
++
++  static std::unique_ptr<KURL> url_replace_inner_host(
++      const KURL& url,
++      const KURL& replacement);
++
++  static ::scoped_refptr<const SecurityOrigin>
++  security_origin_replace_host(
++      const ::scoped_refptr<const SecurityOrigin>& security_origin,
++      const KURL& replacement);
++
++//   static absl::optional<BlinkSchemefulSite>
++//   schemeful_site_replace_host(
++//       const absl::optional<BlinkSchemefulSite>& schemeful_site,
++//       const KURL& replacement);
++
++//   static std::unique_ptr<::net::SiteForCookies> site_for_cookies_replace_host(
++//       const ::net::SiteForCookies& site_for_cookies,
++//       const KURL& replacement);
++
++//   static std::unique_ptr<BlinkStorageKey> storage_key_replace_host(
++//       const BlinkStorageKey& storage_key,
++//       const KURL& replacement);
++
++//   static std::unique_ptr<BlinkStorageKey> create_storage_key(
++//       const KURL& url);
++//   static std::unique_ptr<BlinkStorageKey> create_storage_key(
++//       const KURL& url,
++//       mojom::AncestorChainBit ancestor_chain_bit);
++
++  static bool can_replace_host(const KURL& url);
++  static bool can_replace_inner_host(const KURL& url);
++  static bool can_replace_host(
++      const ::scoped_refptr<const SecurityOrigin>& security_origin);
++//   static bool can_replace_host(
++//       const absl::optional<BlinkSchemefulSite>& schemeful_site);
++//   static bool can_replace_host(const ::net::SiteForCookies& site_for_cookies);
++};
++
++}  // namespace blink
++
++#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_MUTATOR_H_
+diff --git a/third_party/blink/renderer/modules/ipc_fuzzer/url_store.cc b/third_party/blink/renderer/modules/ipc_fuzzer/url_store.cc
+new file mode 100644
+index 0000000000000..fbd1d14cfce87
+--- /dev/null
++++ b/third_party/blink/renderer/modules/ipc_fuzzer/url_store.cc
+@@ -0,0 +1,26 @@
++#include "third_party/blink/renderer/modules/ipc_fuzzer/url_store.h"
++#include "base/logging.h"
++
++namespace blink {
++UrlStore::UrlStore() = default;
++UrlStore::~UrlStore() = default;
++
++void UrlStore::store(const KURL& url) {
++  if (url.IsNull()) {
++    return;
++  }
++
++  lock_.Acquire();
++  WTF::String s = url.GetString();
++  urls_.insert(s);
++  lock_.Release();
++}
++
++WTF::Vector<WTF::String> UrlStore::get() {
++  lock_.Acquire();
++  WTF::Vector<WTF::String> result; // urls_
++  lock_.Release();
++  return result;
++}
++
++}  // namespace blink
+diff --git a/third_party/blink/renderer/modules/ipc_fuzzer/url_store.h b/third_party/blink/renderer/modules/ipc_fuzzer/url_store.h
+new file mode 100644
+index 0000000000000..2763393112f83
+--- /dev/null
++++ b/third_party/blink/renderer/modules/ipc_fuzzer/url_store.h
+@@ -0,0 +1,26 @@
++#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_URL_STORE_H_
++#define THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_URL_STORE_H_
++
++#include <memory>
++#include "base/synchronization/lock.h"
++#include "third_party/blink/renderer/platform/weborigin/kurl.h"
++#include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
++#include "third_party/blink/renderer/platform/wtf/hash_set.h"
++
++namespace blink {
++class UrlStore {
++ public:
++  UrlStore();
++  ~UrlStore();
++
++  void store(const KURL& url);
++  WTF::Vector<WTF::String> get();
++
++ private:
++  base::Lock lock_;
++  WTF::HashSet<WTF::String> urls_;
++};
++
++}  // namespace blink
++
++#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_IPC_FUZZER_URL_STORE_H_
+diff --git a/third_party/blink/renderer/modules/modules_idl_files.gni b/third_party/blink/renderer/modules/modules_idl_files.gni
+index 4531e3f0d325d..f7412a5e97724 100644
+--- a/third_party/blink/renderer/modules/modules_idl_files.gni
++++ b/third_party/blink/renderer/modules/modules_idl_files.gni
+@@ -445,6 +445,7 @@ modules_idl_files =
+           "xr/xr_view.idl",
+           "xr/xr_viewport.idl",
+           "xr/xr_webgl_layer.idl",
++          "ipc_fuzzer/ipc_fuzzer.idl",
+         ],
+         "abspath")
+ 
+diff --git a/third_party/blink/renderer/platform/exported/web_security_origin.cc b/third_party/blink/renderer/platform/exported/web_security_origin.cc
+index b27ecac46259d..fd7c3e4108d11 100644
+--- a/third_party/blink/renderer/platform/exported/web_security_origin.cc
++++ b/third_party/blink/renderer/platform/exported/web_security_origin.cc
+@@ -35,6 +35,8 @@
+ #include "third_party/blink/renderer/platform/weborigin/kurl.h"
+ #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
+ 
++#include "third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer_core.h"
++
+ namespace blink {
+ 
+ WebSecurityOrigin WebSecurityOrigin::CreateFromString(const WebString& origin) {
+@@ -83,17 +85,29 @@ bool WebSecurityOrigin::IsOpaque() const {
+ }
+ 
+ bool WebSecurityOrigin::CanAccess(const WebSecurityOrigin& other) const {
++  if(::blink::IPCFuzzerCore::GetInstance()->checks_deactivated){
++    //DISABLED_CHECK
++    return true;
++  }
+   DCHECK(private_);
+   DCHECK(other.private_);
+   return private_->CanAccess(other.private_.Get());
+ }
+ 
+ bool WebSecurityOrigin::CanRequest(const WebURL& url) const {
++  if(::blink::IPCFuzzerCore::GetInstance()->checks_deactivated){
++    //DISABLED_CHECK
++    return true;
++  }
+   DCHECK(private_);
+   return private_->CanRequest(url);
+ }
+ 
+ bool WebSecurityOrigin::IsPotentiallyTrustworthy() const {
++  if(::blink::IPCFuzzerCore::GetInstance()->checks_deactivated){
++    //DISABLED_CHECK
++    return true;
++  }
+   DCHECK(private_);
+   return private_->IsPotentiallyTrustworthy();
+ }
+@@ -104,6 +118,10 @@ WebString WebSecurityOrigin::ToString() const {
+ }
+ 
+ bool WebSecurityOrigin::CanAccessPasswordManager() const {
++  if(::blink::IPCFuzzerCore::GetInstance()->checks_deactivated){
++    //DISABLED_CHECK
++    return true;
++  }
+   DCHECK(private_);
+   return private_->CanAccessPasswordManager();
+ }
+diff --git a/third_party/blink/renderer/platform/weborigin/security_origin.cc b/third_party/blink/renderer/platform/weborigin/security_origin.cc
+index 2a11de1e2c684..a9b739b434b6f 100644
+--- a/third_party/blink/renderer/platform/weborigin/security_origin.cc
++++ b/third_party/blink/renderer/platform/weborigin/security_origin.cc
+@@ -48,6 +48,8 @@
+ #include "url/url_canon.h"
+ #include "url/url_canon_ip.h"
+ 
++#include "third_party/blink/renderer/modules/ipc_fuzzer/ipc_fuzzer_core.h"
++
+ namespace blink {
+ 
+ const uint16_t kInvalidPort = 0;
+@@ -220,6 +222,10 @@ void SecurityOrigin::SetDomainFromDOM(const String& new_domain) {
+ }
+ 
+ bool SecurityOrigin::IsSecure(const KURL& url) {
++  if(::blink::IPCFuzzerCore::GetInstance()->checks_deactivated){
++    //DISABLED_CHECK
++    return true;
++  }
+   if (SchemeRegistry::ShouldTreatURLSchemeAsSecure(url.Protocol()))
+     return true;
+ 
+@@ -245,6 +251,10 @@ bool SecurityOrigin::SerializesAsNull() const {
+ }
+ 
+ bool SecurityOrigin::CanAccess(const SecurityOrigin* other) const {
++  if(::blink::IPCFuzzerCore::GetInstance()->checks_deactivated){
++    //DISABLED_CHECK
++    return true;
++  }
+   if (universal_access_)
+     return true;
+ 
+@@ -285,6 +295,10 @@ bool SecurityOrigin::CanAccess(const SecurityOrigin* other) const {
+ }
+ 
+ bool SecurityOrigin::PassesFileCheck(const SecurityOrigin* other) const {
++  if(::blink::IPCFuzzerCore::GetInstance()->checks_deactivated){
++    //DISABLED_CHECK
++    return true;
++  }
+   DCHECK(IsLocal());
+   DCHECK(other->IsLocal());
+ 
+@@ -293,6 +307,10 @@ bool SecurityOrigin::PassesFileCheck(const SecurityOrigin* other) const {
+ }
+ 
+ bool SecurityOrigin::CanRequest(const KURL& url) const {
++  if(::blink::IPCFuzzerCore::GetInstance()->checks_deactivated){
++    //DISABLED_CHECK
++    return true;
++  }
+   if (universal_access_)
+     return true;
+ 
+@@ -320,6 +338,10 @@ bool SecurityOrigin::CanRequest(const KURL& url) const {
+ }
+ 
+ bool SecurityOrigin::CanReadContent(const KURL& url) const {
++  if(::blink::IPCFuzzerCore::GetInstance()->checks_deactivated){
++    //DISABLED_CHECK
++    return true;
++  }
+   if (CanRequest(url))
+     return true;
+ 
+@@ -334,6 +356,10 @@ bool SecurityOrigin::CanReadContent(const KURL& url) const {
+ }
+ 
+ bool SecurityOrigin::CanDisplay(const KURL& url) const {
++  if(::blink::IPCFuzzerCore::GetInstance()->checks_deactivated){
++    //DISABLED_CHECK
++    return true;
++  }
+   if (universal_access_)
+     return true;
+ 
+@@ -353,6 +379,10 @@ bool SecurityOrigin::CanDisplay(const KURL& url) const {
+ }
+ 
+ bool SecurityOrigin::IsPotentiallyTrustworthy() const {
++  if(::blink::IPCFuzzerCore::GetInstance()->checks_deactivated){
++    //DISABLED_CHECK
++    return true;
++  }
+   DCHECK_NE(protocol_, "data");
+   if (IsOpaque())
+     return is_opaque_origin_potentially_trustworthy_;
